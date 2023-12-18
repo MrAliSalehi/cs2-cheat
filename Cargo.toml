@@ -1,0 +1,19 @@
+[package]
+name = "cs2-cheat"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+proc_mem = { git = "https://github.com/mralisalehi/ProcMem/", rev = "b14d6ca9c02bdd7a2ef0561e7b5bb2552b6dad10" }
+#cgmath = "0.18.0"
+egui = "0.24.1"
+egui_overlay = "0.6.0"
+eyre = "0.6.9"
+nalgebra = "0.32.3"
+bytemuck = "1.14.0"
+lazy_static = "1.4.0"
+clearscreen = "2.0.1"
+winapi = { version = "0.3.9", features = ["winuser", "windef"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+process-memory = "0.5.0"
