@@ -1,14 +1,15 @@
-use std::fmt::{Debug, Formatter, Write};
-use std::sync::Arc;
-use egui_overlay::egui_render_three_d::three_d::Zero;
-use nalgebra::{matrix, Matrix4x3, SMatrix, SMatrixView, Vector3};
-use proc_mem::Process;
-use process_memory::{DataMember, Memory, ProcessHandle};
-use crate::{continue_if, offsets, read_vector3_from_bytes};
+use std::fmt::{Debug, Formatter};
 
+use egui_overlay::egui_render_three_d::three_d::Zero;
+use nalgebra::{SMatrix, Vector3};
+
+use process_memory::{DataMember, Memory, ProcessHandle};
+use crate::{offsets, read_vector3_from_bytes};
+
+#[derive(Default)]
 pub struct Entity {
-    pawn: usize,
-    controller: usize,
+    //pawn: usize,
+    //controller: usize,
     pub name: String,
     pub health: u32,
     pub weapon: String,
@@ -20,7 +21,7 @@ pub struct Entity {
     pub spent_money: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Default)]
 pub struct LocalPlayer {
     pub entity: Entity,
     pub view_matrix: SMatrix<f32, 4, 4>,
@@ -157,15 +158,15 @@ impl Entity {
                 money,
                 spent_money,
                 team_number,
-                pawn,
-                controller,
+            //    pawn,
+               // controller,
             }
         )
     }
 
     fn fix_weapon_name(weapon_name: String) -> String {
         let mut new_name = weapon_name.clone();
-        if new_name != "" {
+        if !new_name.is_empty() {
             let a = new_name.rfind("weapon_").unwrap_or(0);
             //    println!("x3.3");
 
@@ -180,32 +181,9 @@ impl Entity {
     }
 }
 
-impl Default for Entity {
-    fn default() -> Self {
-        Self {
-            name: String::default(),
-            head: Vector3::<f32>::default(),
-            health: 0,
-            team_number: 0,
-            weapon: String::default(),
-            origin: Vector3::<f32>::default(),
-            team_str: String::default(),
-            pawn: 0,
-            controller: 0,
-            money: 0,
-            spent_money: 0,
-        }
-    }
-}
 
-impl Default for LocalPlayer {
-    fn default() -> Self {
-        Self {
-            view_matrix: SMatrix::<f32, 4, 4>::default(),
-            entity: Default::default(),
-        }
-    }
-}
+
+
 
 impl Debug for Entity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

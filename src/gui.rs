@@ -33,7 +33,7 @@ impl EguiOverlay for CsOverlay {
             .interactable(false)
             .fixed_pos(area_pos)
             .order(Order::Background)
-            .show(&egui_context, |ui| {
+            .show(egui_context, |ui| {
                 let (rect, _) = ui.allocate_at_least(area_size, Sense { focusable: false, drag: false, click: false });
                 let painter = ui.painter();
                 if self.show_borders {
@@ -52,7 +52,7 @@ impl EguiOverlay for CsOverlay {
                     let width = height / 2.4f32;
 
                     let g_localp = LOCAL_PLAYER.lock().unwrap();
-                    let distance = g_localp.calc_distance_rounded(entity.origin);
+                    let _distance = g_localp.calc_distance_rounded(entity.origin);
                     drop(g_localp);
 
                     //draw visuals

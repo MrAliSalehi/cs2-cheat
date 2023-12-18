@@ -107,7 +107,7 @@ fn main() -> Res {
         }
         sleep(Duration::from_millis(2000));
         clearscreen::clear().unwrap();
-        i = i + 1;
+        i += 1;
     }
 
 
