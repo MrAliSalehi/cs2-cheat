@@ -1,10 +1,13 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::ffi::OsStr;
 use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
 use std::ptr::null;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, };
 use std::thread::sleep;
 use std::time::Duration;
+use egui::Rounding;
 use egui_overlay::start;
 use lazy_static::lazy_static;
 use nalgebra::{SMatrix, Vector3};
@@ -31,6 +34,8 @@ lazy_static!(
 #[cfg(not(target_pointer_width = "64"))]
 compile_error!("compilation is only allowed for 64-bit targets");
 
+
+
 fn main() -> Res {
     std::thread::spawn(|| {
         unsafe {
@@ -49,7 +54,7 @@ fn main() -> Res {
                 let mut rect = WINDOW_POS.lock().unwrap();
                 winapi::um::winuser::GetWindowRect(h_wnd, &mut *rect);
                 drop(rect);
-                sleep(Duration::from_secs(2));
+                sleep(Duration::from_secs(4));
             }
         }
     });
@@ -80,100 +85,88 @@ fn main() -> Res {
             let matrix = unsafe { m_matrix.read().unwrap() };
             //let matrix = proc_cl.read_mem::<SMatrix<f32, 4, 4>>(base + offsets::dwViewMatrix).unwrap_or_default();
             *LOCAL_PLAYER.lock().unwrap().view_matrix = *matrix;
-            //sleep(Duration::from_millis(1));
+            sleep(Duration::from_nanos(800));
         }
     });
 
-    std::thread::Builder::new()
-        .stack_size(100 * 1024)
-        .spawn(move || {
-            let handle = Pid::from(pid).try_into_process_handle().unwrap();
-            loop {
-                entities(handle, list_entry, entity_list).unwrap();
-                sleep(Duration::from_millis(20));
-            }
-        }).unwrap();
 
+    std::thread::spawn(move || {
+        let handle = Pid::from(pid).try_into_process_handle().unwrap();
+        get_entities(handle, list_entry, entity_list).unwrap();
 
-    start(CsOverlay { frame: 0, show_borders: true });
-
-    let mut i = 0;
-    loop {
-        if i >= 100_000 { break; }
-        println!("local player: {:?}\n", &LOCAL_PLAYER.lock().unwrap(), );
-        let list = ENTITY_LIST.lock().unwrap();
-        for e in list.iter() {
-            println!("{:?}", e);
+        loop {
+            //clearscreen::clear().unwrap();
+            let mut rf = ENTITY_LIST.lock().unwrap();
+            rf.iter_mut().for_each(|f| f.update());
+            drop(rf);
+            sleep(Duration::from_millis(22));
         }
-        sleep(Duration::from_millis(2000));
-        clearscreen::clear().unwrap();
-        i += 1;
-    }
+    });
 
+
+    start(CsOverlay { frame: 0, show_borders: false, rounding: Rounding::from(3.0) });
+
+    /*  let mut i = 0;
+      loop {
+          if i >= 100_000 { break; }
+          println!("local player: {:?}\n", &LOCAL_PLAYER.lock().unwrap(), );
+          let list = ENTITY_LIST.lock().unwrap();
+          for e in list.iter() {
+              println!("{:?}", e);
+          }
+          sleep(Duration::from_millis(2000));
+          clearscreen::clear().unwrap();
+          i += 1;
+      }*/
 
 
     Ok(())
 }
 
 
-fn entities(handle: ProcessHandle, list_entry: usize, entity_list: usize) -> Res {
+fn get_entities(handle: ProcessHandle, list_entry: usize, entity_list: usize) -> Res {
     let mut entities = vec![];
 
-
-    //println!("entry: {} , entity: {}", list_entry, entity_list);
     for i in 0..64 {
         if list_entry == 0 { break; }
         if entity_list == 0 { break; }
-        //println!("a");
 
-        let m_controller = DataMember::<usize>::new_offset(handle, vec![list_entry + (i * 0x78)]);
-        /*let mut controller = 0;
-        proc.read_ptr(&mut controller, , 8);
-         println!("b");*/
 
-        let controller = unsafe { m_controller.read().unwrap() };
+        let controller = unsafe {
+            DataMember::<usize>::new_offset(handle, vec![list_entry + (i * 0x78)]).read().unwrap()
+        };
 
         continue_if!(controller == 0);
 
-        let m_pawn_handle = DataMember::<usize>::new_offset(handle,
-                                                            vec![controller + offsets::m_hPlayerPawn]);
 
-        let pawn_handle = unsafe { m_pawn_handle.read().unwrap() };
-        //proc.read_mem::<i32>(controller + offsets::m_hPlayerPawn).unwrap_or(0);
-        //println!("c");
-//DataMember::<usize>::new_offset(handle, vec![]);
+        let pawn_handle = unsafe {
+            DataMember::<usize>::new_offset(handle, vec![controller + offsets::m_hPlayerPawn]).read().unwrap()
+        };
+
         continue_if!(pawn_handle == 0);
 
-        let m_entry2 = DataMember::<usize>::new_offset(handle,
-                                                       vec![entity_list + (0x8 * ((pawn_handle & 0x7FFF) >> 9) + 0x10)]);
 
-        let entry2 = unsafe { m_entry2.read().unwrap() };
-        /*  let mut entry2 = 0;
-        proc.read_ptr(&mut entry2, entity_list + (0x8 * ((pawn_handle & 0x7FFF) >> 9) + 0x10) as usize, 8);
-        //continue_if!(entry2.is_zero());
-        println!("d");
+        let entry2 = unsafe {
+            DataMember::<usize>::new_offset(handle,
+                                            vec![entity_list + (0x8 * ((pawn_handle & 0x7FFF) >> 9) + 0x10)])
+                .read().unwrap()
+        };
 
-        let mut new_pawn = 0;
-        proc.read_ptr(&mut new_pawn, entry2 + (0x78 * (pawn_handle & 0x1FF)) as usize, 8);
-        continue_if!(new_pawn.is_zero());*/
 
-        let m_new_pawn = DataMember::<usize>::new_offset(handle,
-                                                         vec![entry2 + (0x78 * (pawn_handle & 0x1FF)) ]);
-
-        let new_pawn = unsafe { m_new_pawn.read().unwrap() };
+        let new_pawn = unsafe {
+            DataMember::<usize>::new_offset(handle, vec![entry2 + (0x78 * (pawn_handle & 0x1FF))])
+                .read().unwrap()
+        };
 
         let Ok(entity) = Entity::new(controller, new_pawn, handle) else { continue; };
-        //  println!("e");
 
         if i == 1 { //first one is the local player
             *LOCAL_PLAYER.lock().unwrap() = LocalPlayer { entity, ..Default::default() };
             continue;
         }
-        //   println!("f");
 
         entities.push(entity);
     }
-    // println!("g");
 
     *ENTITY_LIST.lock().unwrap() = entities;
 

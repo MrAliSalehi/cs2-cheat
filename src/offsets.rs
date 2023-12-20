@@ -1,8 +1,8 @@
 #![allow(non_upper_case_globals)]
 #![allow(unused)]
-pub const dwEntityList: usize = 0x17C18E0;
+pub const dwEntityList: usize = 0x17C1960;
 pub const dwForceAttack: usize = 0x16C2190;
-pub const dwViewMatrix: usize = 0x1820100;
+pub const dwViewMatrix: usize = 0x1820160;
 
 pub const m_iHealth: usize = 0x32C;
 // int32_t

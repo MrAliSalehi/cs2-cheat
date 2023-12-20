@@ -1,15 +1,18 @@
+use std::slice::Iter;
 use std::thread::sleep;
 use std::time::Duration;
-use egui::{Color32, Order, Pos2, Rect, Rounding, Sense, Stroke, vec2, Window};
+use egui::{Color32, Order, Painter, Pos2, Rect, Rounding, Sense, Stroke, vec2, Window};
 use egui_overlay::{egui_window_glfw_passthrough, EguiOverlay};
 use egui_overlay::egui_render_three_d::ThreeDBackend;
 
 use nalgebra::Vector3;
 use crate::{ENTITY_LIST, LOCAL_PLAYER, WINDOW_POS};
+use crate::entity::Entity;
 
 pub struct CsOverlay {
     pub frame: u32,
     pub show_borders: bool,
+    pub(crate) rounding: Rounding,
 }
 
 impl EguiOverlay for CsOverlay {
@@ -40,36 +43,21 @@ impl EguiOverlay for CsOverlay {
                     painter.rect_stroke(rect, Rounding::from(3.0), Stroke::new(3.0, Color32::YELLOW));
                 }
 
-                let (rounding, stroke) = (Rounding::from(3.0), Stroke::new(3.0, Color32::YELLOW));
                 let g_entities = ENTITY_LIST.lock().unwrap();
                 let entities = g_entities.iter();
 
-                for entity in entities {
-                    let Some(screen_pos) = world_to_screen(entity.origin) else { continue; };
-                    let Some(screen_head) = world_to_screen(entity.head) else { continue; };
+                let g_local_player = LOCAL_PLAYER.lock().unwrap();
+                //println!("\n\n{:?}\n\n", g_local_player.entity);
+                let local_player_team = g_local_player.entity.team_number;
+                drop(g_local_player);
 
-                    let height = screen_pos.y - screen_head.y;
-                    let width = height / 2.4f32;
-
-                    let g_localp = LOCAL_PLAYER.lock().unwrap();
-                    let _distance = g_localp.calc_distance_rounded(entity.origin);
-                    drop(g_localp);
-
-                    //draw visuals
-                    let x = screen_head.x - width / 2.0;
-                    let y = screen_head.y;
-                    let w = width;
-                    let h = height;
-
-                    let rect = Rect::from_min_max((x, y).into(), (x + w, y + h).into());
-
-                    painter.rect_stroke(rect, rounding, stroke);
-                }
-
+               self.draw_visuals(entities, local_player_team, painter);
                 drop(g_entities);
+
 
                 //painter.rect_stroke(Rect::from_two_pos(Pos2::new(1.0, 1.0), Pos2::new(100.0, 100.0)), );
             });
+
         Window::new("egui panel")
             .resizable(true)
             .vscroll(true)
@@ -81,18 +69,18 @@ impl EguiOverlay for CsOverlay {
 
                     ui.checkbox(&mut self.show_borders, "show border");
 
-                    ui.label(format!(
-                        "pixels_per_virtual_unit: {}",
-                        glfw_backend.physical_pixels_per_virtual_unit
-                    ));
-                    ui.label(format!("window scale: {}", glfw_backend.scale));
-                    ui.label(format!("cursor pos x: {}", glfw_backend.cursor_pos[0]));
-                    ui.label(format!("cursor pos y: {}", glfw_backend.cursor_pos[1]));
+                    /* ui.label(format!(
+                         "pixels_per_virtual_unit: {}",
+                         glfw_backend.physical_pixels_per_virtual_unit
+                     ));
+                     ui.label(format!("window scale: {}", glfw_backend.scale));
+                     ui.label(format!("cursor pos x: {}", glfw_backend.cursor_pos[0]));
+                     ui.label(format!("cursor pos y: {}", glfw_backend.cursor_pos[1]));
 
-                    ui.label(format!(
-                        "passthrough: {}",
-                        glfw_backend.window.is_mouse_passthrough()
-                    ));
+                     ui.label(format!(
+                         "passthrough: {}",
+                         glfw_backend.window.is_mouse_passthrough()
+                     ));*/
                     ui.allocate_space(ui.available_size());
                 });
 
@@ -103,6 +91,32 @@ impl EguiOverlay for CsOverlay {
             glfw_backend.window.set_mouse_passthrough(true);
         }
         egui_context.request_repaint();
+    }
+}
+
+impl CsOverlay {
+    fn draw_visuals(&self, entities: Iter<Entity>, local_player_team: u8, painter: &Painter) {
+        for entity in entities {
+            let Some(screen_pos) = world_to_screen(entity.origin) else { continue; };
+            let Some(screen_head) = world_to_screen(entity.head) else { continue; };
+
+            let height = screen_pos.y - screen_head.y;
+            let width = height / 2.4f32;
+
+            let g_local = LOCAL_PLAYER.lock().unwrap();
+            let _distance = g_local.calc_distance_rounded(entity.origin);
+            drop(g_local);
+
+            //draw visuals
+            let x = screen_head.x - width / 2.0;
+            let y = screen_head.y;
+            let w = width;
+            let h = height;
+
+            let rect = Rect::from_min_max((x, y).into(), (x + w, y + h).into());
+            let color = if entity.team_number == local_player_team { Color32::GREEN } else { Color32::RED };
+            painter.rect_stroke(rect, self.rounding, Stroke::new(3.0, color));
+        }
     }
 }
 
@@ -136,5 +150,3 @@ fn world_to_screen(v: Vector3<f32>) -> Option<Vector3<f32>> {
 
     Some(Vector3::new(x, y, w))
 }
-
-
