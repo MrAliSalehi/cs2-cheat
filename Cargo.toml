@@ -17,3 +17,4 @@ winapi = { version = "0.3.9", features = ["winuser", "windef"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 process-memory = "0.5.0"
+string-interner = "0.14.0"

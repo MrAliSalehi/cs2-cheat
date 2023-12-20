@@ -46,15 +46,14 @@ fn main() -> Res {
             let mut h_wnd = FindWindowW(null(), name.as_ptr());
             loop {
                 if h_wnd.is_null() {
-                    sleep(Duration::from_millis(100));
-                    println!("cs2 window not found");
+                    sleep(Duration::from_secs(4));
                     h_wnd = FindWindowW(null(), name.as_ptr());
                     continue;
                 }
                 let mut rect = WINDOW_POS.lock().unwrap();
                 winapi::um::winuser::GetWindowRect(h_wnd, &mut *rect);
                 drop(rect);
-                sleep(Duration::from_secs(4));
+                sleep(Duration::from_secs(10));
             }
         }
     });
@@ -83,7 +82,6 @@ fn main() -> Res {
 
         loop {
             let matrix = unsafe { m_matrix.read().unwrap() };
-            //let matrix = proc_cl.read_mem::<SMatrix<f32, 4, 4>>(base + offsets::dwViewMatrix).unwrap_or_default();
             *LOCAL_PLAYER.lock().unwrap().view_matrix = *matrix;
             sleep(Duration::from_nanos(800));
         }
@@ -104,21 +102,7 @@ fn main() -> Res {
     });
 
 
-    start(CsOverlay { frame: 0, show_borders: false, rounding: Rounding::from(3.0) });
-
-    /*  let mut i = 0;
-      loop {
-          if i >= 100_000 { break; }
-          println!("local player: {:?}\n", &LOCAL_PLAYER.lock().unwrap(), );
-          let list = ENTITY_LIST.lock().unwrap();
-          for e in list.iter() {
-              println!("{:?}", e);
-          }
-          sleep(Duration::from_millis(2000));
-          clearscreen::clear().unwrap();
-          i += 1;
-      }*/
-
+    start(CsOverlay { frame: 0, show_borders: false, rounding: Rounding::from(2.0) });
 
     Ok(())
 }

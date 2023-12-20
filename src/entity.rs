@@ -1,14 +1,21 @@
 use std::fmt::{Debug, Formatter};
+use std::sync::{Arc, Mutex};
+use egui::ahash::{HashMap};
 
 use egui_overlay::egui_render_three_d::three_d::Zero;
+use lazy_static::lazy_static;
 use nalgebra::{SMatrix, Vector3};
 
 use process_memory::{DataMember, Memory, ProcessHandle, ProcessHandleExt};
 use crate::{offsets, read_vector3_from_bytes};
 
+lazy_static!(
+    static ref WEAPON_MAP: Mutex<HashMap<[u8; 32],Arc<String>>> = Mutex::new(HashMap::default());
+);
+
 pub struct Entity {
     pub health: u32,
-    pub weapon: String,
+    pub weapon: Arc<String>,
     pub origin: Vector3<f32>,
     pub head: Vector3<f32>,
     pub team_number: u8,
@@ -63,7 +70,14 @@ impl Entity {
                 DataMember::<[u8; 32]>::new_offset(handle, vec![self.weapon_name_ptr])
                     .read().unwrap()
             };
-            self.weapon = Self::fix_weapon_name(String::from_utf8(raw_w_name.to_vec()).unwrap_or(String::from("")));
+            let mut map = WEAPON_MAP.lock().unwrap();
+            if let Some(weapon) = map.get(&raw_w_name) {
+                self.weapon = Arc::clone(&weapon);
+            } else {
+                self.weapon = Arc::new(Self::fix_weapon_name(String::from_utf8(raw_w_name.to_vec()).unwrap_or(String::from(""))));
+                map.insert(raw_w_name, Arc::clone(&self.weapon));
+            }
+            drop(map)
         }
 
         let raw_origin = unsafe {
@@ -131,20 +145,17 @@ impl Entity {
         Ok(entity)
     }
 
-    fn fix_weapon_name(weapon_name: String) -> String {
-        let mut new_name = weapon_name.clone();
-        if !new_name.is_empty() {
-            let a = new_name.rfind("weapon_").unwrap_or(0);
-            //    println!("x3.3");
-
+    fn fix_weapon_name(mut weapon_name: String) -> String {
+        if !weapon_name.is_empty() {
+            let a = weapon_name.rfind("weapon_").unwrap_or(0);
             if a != 0 {
-                new_name.replace_range(a..new_name.len(), "");
+                weapon_name.replace_range(a..weapon_name.len(), "");
             }
-            if new_name.contains("awp") {
-                new_name = String::from("awp");
+            if weapon_name.contains("awp") {
+                weapon_name = String::from("awp");
             }
         }
-        new_name
+        weapon_name
     }
 }
 
@@ -163,7 +174,7 @@ impl Default for Entity {
             head: Vector3::<f32>::default(),
             health: 0,
             team_number: 0,
-            weapon: String::default(),
+            weapon: Arc::new(String::default()),
             origin: Vector3::<f32>::default(),
             team_str: String::default(),
             pawn: 0,
