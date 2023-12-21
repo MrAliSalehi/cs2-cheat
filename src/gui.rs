@@ -1,18 +1,25 @@
+use std::ffi::OsStr;
+use std::iter::once;
+use std::os::windows::ffi::OsStrExt;
+use std::ptr::null;
 use std::slice::Iter;
 use std::thread::sleep;
 use std::time::Duration;
-use egui::{Color32, Order, Painter, Pos2, Rect, Rounding, Sense, Stroke, vec2, Window};
+use egui::{Align2, Color32, FontId, Order, Painter, Pos2, Rect, Rgba, Rounding, Sense, Stroke, vec2, Window};
 use egui_overlay::{egui_window_glfw_passthrough, EguiOverlay};
 use egui_overlay::egui_render_three_d::ThreeDBackend;
 
 use nalgebra::Vector3;
-use crate::{ENTITY_LIST, LOCAL_PLAYER, WINDOW_POS};
+use winapi::um::winuser::FindWindowW;
+use crate::{continue_if, ENTITY_LIST, LOCAL_PLAYER};
 use crate::entity::Entity;
+use crate::globals::{BONE_CONNECTIONS, WINDOW_POS};
 
 pub struct CsOverlay {
     pub frame: u32,
     pub show_borders: bool,
-    pub(crate) rounding: Rounding,
+    pub rounding: Rounding,
+    pub team_box: bool,
 }
 
 impl EguiOverlay for CsOverlay {
@@ -47,15 +54,12 @@ impl EguiOverlay for CsOverlay {
                 let entities = g_entities.iter();
 
                 let g_local_player = LOCAL_PLAYER.lock().unwrap();
-                //println!("\n\n{:?}\n\n", g_local_player.entity);
                 let local_player_team = g_local_player.entity.team_number;
                 drop(g_local_player);
 
-               self.draw_visuals(entities, local_player_team, painter);
+                self.draw_visuals(entities, local_player_team, painter);
+
                 drop(g_entities);
-
-
-                //painter.rect_stroke(Rect::from_two_pos(Pos2::new(1.0, 1.0), Pos2::new(100.0, 100.0)), );
             });
 
         Window::new("egui panel")
@@ -65,22 +69,8 @@ impl EguiOverlay for CsOverlay {
             .default_size([250.0, 150.0])
             .show(egui_context, |ui|
                 {
-                    //glfw_backend.window.set_decorated(false);
-
                     ui.checkbox(&mut self.show_borders, "show border");
-
-                    /* ui.label(format!(
-                         "pixels_per_virtual_unit: {}",
-                         glfw_backend.physical_pixels_per_virtual_unit
-                     ));
-                     ui.label(format!("window scale: {}", glfw_backend.scale));
-                     ui.label(format!("cursor pos x: {}", glfw_backend.cursor_pos[0]));
-                     ui.label(format!("cursor pos y: {}", glfw_backend.cursor_pos[1]));
-
-                     ui.label(format!(
-                         "passthrough: {}",
-                         glfw_backend.window.is_mouse_passthrough()
-                     ));*/
+                    ui.checkbox(&mut self.team_box, "show teammate");
                     ui.allocate_space(ui.available_size());
                 });
 
@@ -97,6 +87,7 @@ impl EguiOverlay for CsOverlay {
 impl CsOverlay {
     fn draw_visuals(&self, entities: Iter<Entity>, local_player_team: u8, painter: &Painter) {
         for entity in entities {
+            continue_if!(entity.health == 0);
             let Some(screen_pos) = world_to_screen(entity.origin) else { continue; };
             let Some(screen_head) = world_to_screen(entity.head) else { continue; };
 
@@ -113,14 +104,42 @@ impl CsOverlay {
             let w = width;
             let h = height;
 
-            let rect = Rect::from_min_max((x, y).into(), (x + w, y + h).into());
-            let color = if entity.team_number == local_player_team { Color32::GREEN } else { Color32::RED };
-            painter.rect_stroke(rect, self.rounding, Stroke::new(3.0, color));
+            let color = if entity.team_number == local_player_team {
+                Color32::from_rgba_premultiplied((255 - entity.health) as u8, (55 + entity.health * 2) as u8, (140 - entity.health) as u8, 255)
+            } else {
+                if !self.team_box { continue; }
+                Color32::WHITE
+            };
+
+            //esp border position
+            painter.rect_stroke(Rect::from_min_max((x, y).into(), (x + w, y + h).into()), self.rounding, Stroke::new(3.0, color));
+
+            //esp name
+            painter.text(Pos2::from((screen_head.x + (width / 2.5), screen_head.y)),
+                         Align2::CENTER_BOTTOM,
+                         format!("({})", entity.name),
+                         FontId::monospace(10.0),
+                         Color32::from(Rgba::BLUE));
+
+            //health bar
+
+            let x = screen_head.x - (width / 2.0 + 5.0);
+            let y = screen_head.y + (height * (100 - entity.health) as f32 / 100.0);
+            let h = height - (height * (100 - entity.health) as f32 / 100.0);
+            //todo some margin between this and border
+            painter.rect_stroke(Rect::from_min_max((x, y).into(), (x + 2.0, y + h).into()), self.rounding, Stroke::new(3.0, color));
+
+            for (from, to) in BONE_CONNECTIONS.iter() {
+                let Some(from) = entity.bones.get(*from) else { continue; };
+                let Some(to) = entity.bones.get(*to) else { continue; };
+
+                painter.line_segment([Pos2::new(from.x, from.y), Pos2::new(to.x, to.y)], Stroke::new(2.0, Color32::RED));
+            }
         }
     }
 }
 
-fn world_to_screen(v: Vector3<f32>) -> Option<Vector3<f32>> {
+pub fn world_to_screen(v: Vector3<f32>) -> Option<Vector3<f32>> {
     let g_matrix = LOCAL_PLAYER.lock().unwrap();
     let matrix = g_matrix.view_matrix.data.0;
     drop(g_matrix);
@@ -149,4 +168,27 @@ fn world_to_screen(v: Vector3<f32>) -> Option<Vector3<f32>> {
     y -= 0.5f32 * _y * bottom + 0.5f32;
 
     Some(Vector3::new(x, y, w))
+}
+
+pub fn update_cs2_coordination() {
+    std::thread::spawn(|| {
+        unsafe {
+            //Counter-Strike 2
+            //cs2-cheat – main.rs
+            let name: Vec<u16> = OsStr::new("Counter-Strike 2").encode_wide().chain(once(0)).collect();
+
+            let mut h_wnd = FindWindowW(null(), name.as_ptr());
+            loop {
+                if h_wnd.is_null() {
+                    sleep(Duration::from_secs(4));
+                    h_wnd = FindWindowW(null(), name.as_ptr());
+                    continue;
+                }
+                let mut rect = WINDOW_POS.lock().unwrap();
+                winapi::um::winuser::GetWindowRect(h_wnd, &mut *rect);
+                drop(rect);
+                sleep(Duration::from_secs(10));
+            }
+        }
+    });
 }

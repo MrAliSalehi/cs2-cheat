@@ -12,9 +12,9 @@ eyre = "0.6.9"
 nalgebra = "0.32.3"
 bytemuck = "1.14.0"
 lazy_static = "1.4.0"
-clearscreen = "2.0.1"
 winapi = { version = "0.3.9", features = ["winuser", "windef"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 process-memory = "0.5.0"
-string-interner = "0.14.0"
+chrono = "0.4.31"
+
+[dev-dependencies]
+clearscreen = "2.0.1"

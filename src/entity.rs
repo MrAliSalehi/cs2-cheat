@@ -1,17 +1,14 @@
+use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::sync::{Arc, Mutex};
-use egui::ahash::{HashMap};
+use std::sync::{Arc};
 
 use egui_overlay::egui_render_three_d::three_d::Zero;
-use lazy_static::lazy_static;
-use nalgebra::{SMatrix, Vector3};
+use nalgebra::{Vector3};
 
 use process_memory::{DataMember, Memory, ProcessHandle, ProcessHandleExt};
-use crate::{offsets, read_vector3_from_bytes};
+use crate::{gui, offsets, read_vector3_from_bytes};
+use crate::globals::{BONE_MAP, WEAPON_MAP};
 
-lazy_static!(
-    static ref WEAPON_MAP: Mutex<HashMap<[u8; 32],Arc<String>>> = Mutex::new(HashMap::default());
-);
 
 pub struct Entity {
     pub health: u32,
@@ -30,27 +27,9 @@ pub struct Entity {
     pub name: String,
     pub weapon_name_ptr: usize,
     pub money_service: usize,
-}
 
-unsafe impl Send for Entity {}
-
-unsafe impl Sync for Entity {}
-
-#[derive(Debug, Default)]
-pub struct LocalPlayer {
-    pub entity: Entity,
-    pub view_matrix: SMatrix<f32, 4, 4>,
-}
-
-impl LocalPlayer {
-    pub fn calc_distance_rounded(&self, second: Vector3<f32>) -> f32 {
-        let pov = self.entity.origin;
-        let dx = second.x - pov.x;
-        let dy = second.y - pov.y;
-        let dz = second.z - pov.z;
-
-        ((dx * dx + dy * dy + dz * dz).sqrt()) / 10.0
-    }
+    pub bones: HashMap<String, Vector3<f32>>,
+    pub bone_arr_addr: usize,
 }
 
 impl Entity {
@@ -72,7 +51,7 @@ impl Entity {
             };
             let mut map = WEAPON_MAP.lock().unwrap();
             if let Some(weapon) = map.get(&raw_w_name) {
-                self.weapon = Arc::clone(&weapon);
+                self.weapon = Arc::clone(weapon);
             } else {
                 self.weapon = Arc::new(Self::fix_weapon_name(String::from_utf8(raw_w_name.to_vec()).unwrap_or(String::from(""))));
                 map.insert(raw_w_name, Arc::clone(&self.weapon));
@@ -97,6 +76,18 @@ impl Entity {
                     .read().unwrap()
             };
         }
+        if self.bone_arr_addr != 0 {
+            for (bone_name, bone_index) in BONE_MAP.iter() {
+                let bone_addr = self.bone_arr_addr + bone_index * 32;
+                let position = unsafe {
+                    DataMember::<Vector3<f32>>::new_offset(handle, vec![bone_addr]).read().unwrap_or_default()
+                };
+                //18446744073709551615
+                //18446744073709551615
+
+                self.bones.insert(bone_name.parse().unwrap(), gui::world_to_screen(position).unwrap_or_default());
+            }
+        }
     }
     pub fn new(controller: usize, pawn: usize, handle: ProcessHandle) -> eyre::Result<Self> {
         //DataMember::<usize>::new_offset(handle, vec![]);
@@ -115,12 +106,15 @@ impl Entity {
 
         let clipping_weapon = unsafe {
             DataMember::<usize>::new_offset(handle, vec![pawn + offsets::m_pClippingWeapon])
-                .read().unwrap()
+                .read().unwrap_or(0)
         };
+        if clipping_weapon.is_zero() { return Err(eyre::Report::msg("player is dead")); }
+
         let data = unsafe {
             DataMember::<usize>::new_offset(handle, vec![clipping_weapon + 0x360])
                 .read().unwrap()
         };
+
         entity.weapon_name_ptr = unsafe {
             DataMember::<usize>::new_offset(handle, vec![data + offsets::m_szName])
                 .read().unwrap_or(0)
@@ -137,6 +131,16 @@ impl Entity {
 
         entity.money_service = unsafe {
             DataMember::<usize>::new_offset(handle, vec![controller + offsets::m_pInGameMoneyServices])
+                .read().unwrap()
+        };
+
+
+        let scene_node = unsafe {
+            DataMember::<usize>::new_offset(handle, vec![pawn + 0x310])
+                .read().unwrap()
+        };
+        entity.bone_arr_addr = unsafe {
+            DataMember::<usize>::new_offset(handle, vec![scene_node + 0x160 + 0x80])
                 .read().unwrap()
         };
 
@@ -184,6 +188,12 @@ impl Default for Entity {
             weapon_name_ptr: 0,
             money_service: 0,
             handle: ProcessHandle::null_type(),
+            bones: HashMap::default(),
+            bone_arr_addr: 0,
         }
     }
 }
+
+unsafe impl Send for Entity {}
+
+unsafe impl Sync for Entity {}
