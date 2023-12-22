@@ -1,9 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{thread::sleep, sync::{Arc}, time::Duration};
+use std::{thread::sleep, time::Duration};
 use egui::{Rounding};
 use egui_overlay::{egui_render_three_d::three_d::Zero, start};
-use nalgebra::{ Vector3};
+use nalgebra::{Vector3};
+use proc_mem::{Process, };
 use process_memory::{DataMember, Memory, Pid, TryIntoProcessHandle};
 
 mod offsets;
@@ -29,12 +30,28 @@ compile_error!("compilation is only allowed for 64-bit targets");
 fn main() -> Res {
     gui::update_cs2_coordination();
 
-    let proc = Arc::new(proc_mem::Process::with_name("cs2.exe").unwrap());
+    std::thread::spawn(|| start(CsOverlay {
+        frame: 0,
+        show_borders: false,
+        rounding: Rounding::from(2.0),
+        team_box: false,
+    }));
+
+    let proc = loop {
+        let proc = Process::with_name("cs2.exe");
+        match proc {
+            Ok(proc) => break proc,
+            Err(_) => {
+                println!("waiting for process");
+                sleep(Duration::from_secs(3));
+            }
+        }
+    };
+
     let client = proc.module("client.dll").unwrap();
     let base = client.base_address();
-    let pid = proc.process_id;
 
-    let handle = ProcHandle(Pid::from(pid).try_into_process_handle().unwrap());
+    let handle = ProcHandle(Pid::from(proc.process_id).try_into_process_handle().unwrap());
 
     let mut entity_list = unsafe { DataMember::<usize>::new_offset(handle.0, vec![base + offsets::dwEntityList]).read().unwrap() };
 
@@ -42,12 +59,6 @@ fn main() -> Res {
 
     LocalPlayer::update_view_matrix(base, handle);
 
-    std::thread::spawn(|| start(CsOverlay {
-        frame: 0,
-        show_borders: false,
-        rounding: Rounding::from(2.0),
-        team_box: false,
-    }));
 
     let handle = handle;
 

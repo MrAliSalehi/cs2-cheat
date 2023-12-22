@@ -10,5 +10,5 @@ lazy_static!(
     pub static ref WEAPON_MAP: Mutex<HashMap<[u8; 32],Arc<String>>> = Mutex::new(HashMap::default());
     pub static ref LOCAL_PLAYER: Arc<Mutex<LocalPlayer>> = Arc::new(Mutex::new(LocalPlayer::default()));
     pub static ref ENTITY_LIST: Arc<Mutex<Vec<Entity>>> = Arc::new(Mutex::new(vec![]));
-    pub static ref WINDOW_POS: Arc<Mutex<RECT>> = Arc::new(Mutex::new(RECT { left: 0, top: 0, right: 0, bottom: 0 }));
+    pub static ref WINDOW_POS: Arc<Mutex<RECT>> = Arc::new(Mutex::new(RECT { left: 700, top: 700, right: 700, bottom: 700 }));
 );

@@ -195,6 +195,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
+name = "catppuccin-egui"
+version = "3.1.0"
+source = "git+https://github.com/catppuccin/egui#bcb5849b6f96b56aa4982ec3366e238371de473e"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -309,6 +317,7 @@ name = "cs2-cheat"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "catppuccin-egui",
  "chrono",
  "clearscreen",
  "egui",

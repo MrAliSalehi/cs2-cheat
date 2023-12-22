@@ -21,10 +21,10 @@ pub struct CsOverlay {
     pub rounding: Rounding,
     pub team_box: bool,
 }
-
 impl EguiOverlay for CsOverlay {
     fn gui_run(&mut self, egui_context: &egui::Context, _: &mut ThreeDBackend, glfw_backend: &mut egui_window_glfw_passthrough::GlfwBackend) {
-        sleep(Duration::from_millis(10));
+        sleep(Duration::from_millis(4));
+        catppuccin_egui::set_theme(egui_context,catppuccin_egui::MOCHA);
         let cs_size = WINDOW_POS.lock().unwrap();
         let game_bound_y = cs_size.top;
         let game_bound_x = cs_size.left;
@@ -62,15 +62,20 @@ impl EguiOverlay for CsOverlay {
                 drop(g_entities);
             });
 
-        Window::new("egui panel")
+        Window::new("cs2 external cheat")
             .resizable(true)
             .vscroll(true)
             .hscroll(true)
             .default_size([250.0, 150.0])
             .show(egui_context, |ui|
                 {
+
+                    ui.group(|ui|{
+                        ui.label("esp");
+                        ui.checkbox(&mut self.team_box, "show teammate");
+                    });
                     ui.checkbox(&mut self.show_borders, "show border");
-                    ui.checkbox(&mut self.team_box, "show teammate");
+
                     ui.allocate_space(ui.available_size());
                 });
 
@@ -126,8 +131,7 @@ impl CsOverlay {
             let x = screen_head.x - (width / 2.0 + 5.0);
             let y = screen_head.y + (height * (100 - entity.health) as f32 / 100.0);
             let h = height - (height * (100 - entity.health) as f32 / 100.0);
-            //todo some margin between this and border
-            painter.rect_stroke(Rect::from_min_max((x, y).into(), (x + 2.0, y + h).into()), self.rounding, Stroke::new(3.0, color));
+            painter.rect_stroke(Rect::from_min_max((x - 2.0, y - 2.0).into(), (x , y + h).into()), self.rounding, Stroke::new(3.0, color));
 
             for (from, to) in BONE_CONNECTIONS.iter() {
                 let Some(from) = entity.bones.get(*from) else { continue; };
