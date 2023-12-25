@@ -137,22 +137,22 @@ impl CsOverlay {
 
 impl EguiOverlay for CsOverlay {
     fn gui_run(&mut self, egui_context: &Context, _: &mut ThreeDBackend, glfw_backend: &mut GlfwBackend) {
-        /* self.if_closed(glfw_backend);
+        self.if_closed(glfw_backend);
 
-         if self.first_frame {
-             let mut fonts = egui::FontDefinitions::default();
-             egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-             egui_context.set_fonts(fonts);
-             catppuccin_egui::set_theme(egui_context, catppuccin_egui::MOCHA);
-             self.first_frame = false;
-         }
-         if !self.found_game {
-             glfw_backend.window.set_pos(0, 0);
-             glfw_backend.window.set_size(500, 500);
-             self.waiting_ui(egui_context, glfw_backend);
-             self.found_game = self.game_running(self.process_name.as_ptr());
-             return;
-         }*/
+        if self.first_frame {
+            let mut fonts = egui::FontDefinitions::default();
+            egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+            egui_context.set_fonts(fonts);
+            catppuccin_egui::set_theme(egui_context, catppuccin_egui::MOCHA);
+            self.first_frame = false;
+        }
+        if !self.found_game {
+            glfw_backend.window.set_pos(0, 0);
+            glfw_backend.window.set_size(500, 500);
+            self.waiting_ui(egui_context, glfw_backend);
+            self.found_game = self.game_running(self.process_name.as_ptr());
+            return;
+        }
         let cs_size = WINDOW_POS.lock().unwrap();
         let game_bound_y = 0;
         let game_bound_x = 0;
@@ -168,7 +168,28 @@ impl EguiOverlay for CsOverlay {
         self.esp.area_pos = Pos2::new(game_bound_x as f32, game_bound_y as f32);
         self.esp.area_size = vec2(game_bound_right as f32, game_bound_bottom as f32);
 
-        sleep(Duration::from_millis(4));
+        Window::new("")
+            .resizable(true)
+            .vscroll(true)
+            .hscroll(true)
+            .open(&mut self.open)
+            .default_size([250.0, 150.0])
+            .show(egui_context, |ui|
+                {
+                    ui.horizontal(|ui| {
+                        ui.selectable_value(&mut self.current_tab, Tabs::Esp, "esp");
+                        ui.selectable_value(&mut self.current_tab, Tabs::Misc, "Misc");
+                        ui.selectable_value(&mut self.current_tab, Tabs::Gsettings, "General Options");
+                    });
+                    ui.separator();
+                    match self.current_tab {
+                        Tabs::Esp => self.esp.render_ui(ui),
+                        Tabs::Gsettings => self.general_settings.render_ui(ui),
+                        Tabs::Misc => self.misc.render_ui(ui),
+                        Tabs::Aim => {}
+                    }
+                    ui.allocate_space(ui.available_size());
+                });
 
         egui::Area::new("overlay")
             .interactable(false)
@@ -193,32 +214,6 @@ impl EguiOverlay for CsOverlay {
                 }
                 drop(g_entities);
             });
-
-        Window::new("cs2 external cheat")
-            .resizable(true)
-            .vscroll(true)
-            .hscroll(true)
-            .open(&mut self.open)
-            .default_size([250.0, 150.0])
-            .show(egui_context, |ui|
-                {
-                    ui.horizontal(|ui| {
-                        ui.selectable_value(&mut self.current_tab, Tabs::Esp, "esp");
-                        ui.selectable_value(&mut self.current_tab, Tabs::Misc, "Misc");
-                        ui.selectable_value(&mut self.current_tab, Tabs::Gsettings, "General Options");
-                    });
-
-                    ui.separator();
-
-
-                    match self.current_tab {
-                        Tabs::Esp => self.esp.render_ui(ui),
-                        Tabs::Gsettings => self.general_settings.render_ui(ui),
-                        Tabs::Misc => self.misc.render_ui(ui),
-                        Tabs::Aim => {}
-                    }
-                    ui.allocate_space(ui.available_size());
-                });
 
 
         if egui_context.wants_pointer_input() || egui_context.wants_keyboard_input() {
