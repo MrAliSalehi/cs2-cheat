@@ -3,18 +3,20 @@ use egui::Ui;
 use egui_overlay::egui_render_three_d::three_d::Zero;
 use nalgebra::Vector3;
 use winapi::shared::windef::RECT;
+use winapi::um::winnt::LPCWSTR;
 use winapi::um::winuser::FindWindowW;
-use crate::globals::{LOCAL_PLAYER, };
+use crate::globals::{LOCAL_PLAYER, WINDOW_POS};
 
 pub mod cs2_overlay;
 pub mod esp;
 pub mod misc;
 pub mod setting;
+
 pub trait OverlayTab {
     fn render_ui(&mut self, ui: &mut Ui);
 }
 
-#[derive(PartialEq,Clone)]
+#[derive(PartialEq, Clone)]
 pub enum Tabs {
     Esp,
     Aim,
@@ -22,7 +24,7 @@ pub enum Tabs {
     Gsettings,
 }
 
-pub fn world_to_screen(v: Vector3<f32>,game_rect: &RECT) -> Option<Vector3<f32>> {
+pub fn world_to_screen(v: Vector3<f32>, game_rect: &RECT) -> Option<Vector3<f32>> {
     let g_matrix = LOCAL_PLAYER.lock().unwrap();
     let matrix = g_matrix.view_matrix.data.0;
     drop(g_matrix);
@@ -51,6 +53,22 @@ pub fn world_to_screen(v: Vector3<f32>,game_rect: &RECT) -> Option<Vector3<f32>>
     Some(Vector3::new(x, y, w))
 }
 
-/*pub fn cs2_coordination() -> RECT {
 
-}*/
+pub fn update_cs2_coordination(name: Vec<u16>) {
+    std::thread::spawn(move || {
+        unsafe {
+            let name = name.as_ptr();
+            loop {
+                let h_wnd = FindWindowW(null(), name);
+                if h_wnd.is_null() {
+                    sleep(Duration::from_secs(4));
+                    continue;
+                }
+                let mut rect = WINDOW_POS.lock().unwrap();
+                winapi::um::winuser::GetWindowRect(h_wnd, &mut *rect);
+                drop(rect);
+                sleep(Duration::from_secs(10));
+            }
+        }
+    });
+}

@@ -1,6 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::{thread::sleep, time::Duration};
+use std::ffi::OsStr;
+use std::iter::once;
+use std::os::windows::ffi::OsStrExt;
 use std::sync::Arc;
 use egui::{Rounding};
 use egui_overlay::{egui_render_three_d::three_d::Zero, start};
@@ -30,11 +33,13 @@ compile_error!("compilation is only allowed for 64-bit targets");
 
 
 fn main() -> Res {
+    let name = OsStr::new("Counter-Strike 2").encode_wide().chain(once(0)).collect::<Vec<u16>>();
+    gui::update_cs2_coordination(name.clone());
     let (sender, receiver) = crossbeam_channel::bounded::<u8>(1);
 
     let receiver = Arc::new(receiver);
 
-    std::thread::spawn(|| start(CsOverlay::new(sender)));
+    std::thread::spawn(|| start(CsOverlay::new(sender,name)));
 
     let recv_cl = Arc::clone(&receiver);
     let proc = loop {
@@ -125,8 +130,6 @@ fn main() -> Res {
     std::thread::spawn(move || {
         loop {
             if let Ok(_) = recv_cl3.try_recv() { return; }
-            clearscreen::clear().unwrap();
-
             let mut rf = ENTITY_LIST.lock().unwrap();
             if rf.len().is_zero() {
                 drop(rf);
@@ -135,7 +138,6 @@ fn main() -> Res {
                 continue;
             }
             rf.iter_mut().for_each(|f| {
-                    println!("{:?}",&f);
                     f.update()
                 }
             );
