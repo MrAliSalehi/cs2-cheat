@@ -137,32 +137,32 @@ impl CsOverlay {
 
 impl EguiOverlay for CsOverlay {
     fn gui_run(&mut self, egui_context: &Context, _: &mut ThreeDBackend, glfw_backend: &mut GlfwBackend) {
-        self.if_closed(glfw_backend);
+        /* self.if_closed(glfw_backend);
 
-        if self.first_frame {
-            let mut fonts = egui::FontDefinitions::default();
-            egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-            egui_context.set_fonts(fonts);
-            catppuccin_egui::set_theme(egui_context, catppuccin_egui::MOCHA);
-            self.first_frame = false;
-        }
-        if !self.found_game {
-            glfw_backend.window.set_pos(0, 0);
-            glfw_backend.window.set_size(500, 500);
-            self.waiting_ui(egui_context, glfw_backend);
-            self.found_game = self.game_running(self.process_name.as_ptr());
-            return;
-        }
+         if self.first_frame {
+             let mut fonts = egui::FontDefinitions::default();
+             egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+             egui_context.set_fonts(fonts);
+             catppuccin_egui::set_theme(egui_context, catppuccin_egui::MOCHA);
+             self.first_frame = false;
+         }
+         if !self.found_game {
+             glfw_backend.window.set_pos(0, 0);
+             glfw_backend.window.set_size(500, 500);
+             self.waiting_ui(egui_context, glfw_backend);
+             self.found_game = self.game_running(self.process_name.as_ptr());
+             return;
+         }*/
         let cs_size = WINDOW_POS.lock().unwrap();
-        let game_bound_y = cs_size.top;
-        let game_bound_x = cs_size.left;
+        let game_bound_y = 0;
+        let game_bound_x = 0;
 
         let game_bound_right = cs_size.right;
         let game_bound_bottom = cs_size.bottom;
-
+        self.esp.game_rect = *cs_size;
         drop(cs_size);
 
-        glfw_backend.window.set_pos(0, 0);
+        glfw_backend.window.set_pos(game_bound_x, game_bound_y);
         glfw_backend.window.set_size(game_bound_right, game_bound_bottom);
 
         self.esp.area_pos = Pos2::new(game_bound_x as f32, game_bound_y as f32);
@@ -188,9 +188,10 @@ impl EguiOverlay for CsOverlay {
                 let local_player_team = g_local_player.entity.team_number;
                 drop(g_local_player);
 
-                self.draw_visuals(entities, local_player_team, painter);
+                if self.esp.enabled {
+                    self.draw_visuals(entities, local_player_team, painter);
+                }
                 drop(g_entities);
-
             });
 
         Window::new("cs2 external cheat")
@@ -227,5 +228,4 @@ impl EguiOverlay for CsOverlay {
         }
         egui_context.request_repaint();
     }
-
 }

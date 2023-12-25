@@ -35,7 +35,7 @@ impl Default for Esp {
             area_pos: Pos2::default(),
             area_size: Vec2::default(),
             game_rect: RECT::default(),
-            enabled: false,
+            enabled: true,
         }
     }
 }
