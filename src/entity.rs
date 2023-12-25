@@ -7,7 +7,7 @@ use nalgebra::{Vector3};
 
 use process_memory::{DataMember, Memory, ProcessHandle, ProcessHandleExt};
 use crate::{gui, offsets, read_vector3_from_bytes};
-use crate::globals::{BONE_MAP, WEAPON_MAP};
+use crate::globals::{BONE_MAP, WEAPON_MAP, WINDOW_POS};
 
 
 pub struct Entity {
@@ -40,7 +40,7 @@ impl Entity {
         let pawn = self.pawn;
         let handle = self.handle;
         self.health = unsafe {
-            DataMember::<u32>::new_offset(handle, vec![pawn + offsets::m_iHealth]).read().unwrap_or(0)
+            DataMember::<u32>::new_offset(handle, vec![pawn + offsets::C_BaseEntity::m_iHealth]).read().unwrap_or(0)
         };
         if self.health == 0 { return; }
 
@@ -60,7 +60,7 @@ impl Entity {
         }
 
         let raw_origin = unsafe {
-            DataMember::<[u8; 12]>::new_offset(handle, vec![pawn + offsets::m_vOldOrigin])
+            DataMember::<[u8; 12]>::new_offset(handle, vec![pawn + offsets::C_BasePlayerPawn::m_vOldOrigin])
                 .read().unwrap()
         };
         self.origin = read_vector3_from_bytes(&raw_origin);
@@ -68,24 +68,24 @@ impl Entity {
 
         if self.money_service != 0 {
             self.spent_money = unsafe {
-                DataMember::<i32>::new_offset(handle, vec![self.money_service + offsets::m_iTotalCashSpent])
+                DataMember::<i32>::new_offset(handle, vec![self.money_service + offsets::CCSPlayerController_InGameMoneyServices::m_iTotalCashSpent])
                     .read().unwrap()
             };
             self.money = unsafe {
-                DataMember::<i32>::new_offset(handle, vec![self.money_service + offsets::m_iAccount])
+                DataMember::<i32>::new_offset(handle, vec![self.money_service + offsets::CCSPlayerController_InGameMoneyServices::m_iAccount])
                     .read().unwrap()
             };
         }
         if self.bone_arr_addr != 0 {
+            let g = WINDOW_POS.lock().unwrap();
+            let game_bounds = *g;
+            drop(g);
             for (bone_name, bone_index) in BONE_MAP.iter() {
                 let bone_addr = self.bone_arr_addr + bone_index * 32;
                 let position = unsafe {
                     DataMember::<Vector3<f32>>::new_offset(handle, vec![bone_addr]).read().unwrap_or_default()
                 };
-                //18446744073709551615
-                //18446744073709551615
-
-                self.bones.insert(bone_name.parse().unwrap(), gui::world_to_screen(position).unwrap_or_default());
+                self.bones.insert(bone_name.parse().unwrap(), gui::world_to_screen(position, &game_bounds).unwrap_or_default());
             }
         }
     }
@@ -93,19 +93,19 @@ impl Entity {
         //DataMember::<usize>::new_offset(handle, vec![]);
         let mut entity = Entity::empty(handle, pawn, controller);
         let health = unsafe {
-            DataMember::<u32>::new_offset(handle, vec![pawn + offsets::m_iHealth]).read().unwrap_or(0)
+            DataMember::<u32>::new_offset(handle, vec![pawn + offsets::C_BaseEntity::m_iHealth]).read().unwrap_or(0)
         };
 
         if health.is_zero() { return Err(eyre::Report::msg("player is dead")); }
 
 
         entity.name = String::from_utf8(unsafe {
-            DataMember::<[u8; 16]>::new_offset(handle, vec![controller + offsets::m_iszPlayerName])
+            DataMember::<[u8; 16]>::new_offset(handle, vec![controller + offsets::CBasePlayerController::m_iszPlayerName])
                 .read().unwrap().to_vec()
         }).unwrap_or(String::from("crappy name"));
 
         let clipping_weapon = unsafe {
-            DataMember::<usize>::new_offset(handle, vec![pawn + offsets::m_pClippingWeapon])
+            DataMember::<usize>::new_offset(handle, vec![pawn + offsets::C_CSPlayerPawnBase::m_pClippingWeapon])
                 .read().unwrap_or(0)
         };
         if clipping_weapon.is_zero() { return Err(eyre::Report::msg("player is dead")); }
@@ -116,31 +116,31 @@ impl Entity {
         };
 
         entity.weapon_name_ptr = unsafe {
-            DataMember::<usize>::new_offset(handle, vec![data + offsets::m_szName])
+            DataMember::<usize>::new_offset(handle, vec![data + offsets::CCSWeaponBaseVData::m_szName])
                 .read().unwrap_or(0)
         };
 
         if entity.weapon_name_ptr == 0 { return Err(eyre::Report::msg("gun unavailable")); }
 
         entity.team_number = unsafe {
-            DataMember::<u8>::new_offset(handle, vec![pawn + offsets::m_iTeamNum])
+            DataMember::<u8>::new_offset(handle, vec![pawn + offsets::C_BaseEntity::m_iTeamNum])
                 .read().unwrap()
         };
 
         entity.team_str = (if entity.team_number == 2 { "terrorist" } else { "ct" }).to_string();
 
         entity.money_service = unsafe {
-            DataMember::<usize>::new_offset(handle, vec![controller + offsets::m_pInGameMoneyServices])
+            DataMember::<usize>::new_offset(handle, vec![controller + offsets::CCSPlayerController::m_pInGameMoneyServices])
                 .read().unwrap()
         };
 
 
         let scene_node = unsafe {
-            DataMember::<usize>::new_offset(handle, vec![pawn + 0x310])
+            DataMember::<usize>::new_offset(handle, vec![pawn + offsets::C_BaseEntity::m_pGameSceneNode])
                 .read().unwrap()
         };
         entity.bone_arr_addr = unsafe {
-            DataMember::<usize>::new_offset(handle, vec![scene_node + 0x160 + 0x80])
+            DataMember::<usize>::new_offset(handle, vec![scene_node + offsets::CSkeletonInstance::m_modelState + 0x80])
                 .read().unwrap()
         };
 
@@ -166,8 +166,11 @@ impl Entity {
 
 impl Debug for Entity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("name:{},health:{},team ({}):{},weapon:{},origin:({},{},{}),money:{},spent:{}",
-                             self.name, self.health, self.team_number, self.team_str, self.weapon, self.origin.x, self.origin.y, self.origin.z, self.money, self.spent_money))
+        f.write_str(&format!("name:{},health:{},team ({}):{},weapon:{},origin:({},{},{}),money:{},spent:{}, bone: {:?}",
+                             self.name, self.health, self.team_number, self.team_str, self.weapon,
+                             self.origin.x, self.origin.y, self.origin.z,
+                             self.money, self.spent_money,self.bones
+        ))
     }
 }
 
