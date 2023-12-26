@@ -32,7 +32,7 @@ impl LocalPlayer {
                 if let Ok(_) = abort_sig.try_recv() {
                     return;
                 }
-                let matrix = unsafe { m_matrix.read().unwrap() };
+                let matrix = unsafe { m_matrix.read().unwrap_or_default() };
                 *LOCAL_PLAYER.lock().unwrap().view_matrix = *matrix;
                 sleep(Duration::from_nanos(400));
             }

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc};
+use egui::Color32;
 
 use egui_overlay::egui_render_three_d::three_d::Zero;
 use nalgebra::{Vector3};
@@ -160,6 +161,9 @@ impl Entity {
             }
         }
         weapon_name
+    }
+    pub fn calculate_color(&self) -> Color32 {
+        Color32::from_rgba_premultiplied((255 - self.health) as u8, (55 + self.health * 2) as u8, (140 - self.health) as u8, 255)
     }
 }
 

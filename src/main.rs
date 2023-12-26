@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::{thread::sleep, time::Duration, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, sync::Arc};
+use crossbeam_channel::Receiver;
 use egui_overlay::{egui_render_three_d::three_d::Zero, start};
 use nalgebra::{Vector3};
 use proc_mem::{Process};
@@ -80,16 +81,17 @@ fn main() -> Res {
 
     LocalPlayer::update_view_matrix(base, handle, Arc::clone(&recv_cl));
 
-
     let handle = handle;
 
-    //todo: do something when the game ends
-    //todo: if the app is stuck in this state, it wont close, make channel to signal the abort
     loop {
         if let Ok(_) = recv_cl.try_recv() {
             return Ok(());
         }
-        let game_rules = unsafe { DataMember::<usize>::new_offset(handle.0, vec![base + offsets::client_dll::dwGameRules]).read().unwrap() };
+        let game_rules = unsafe { DataMember::<usize>::new_offset(handle.0, vec![base + offsets::client_dll::dwGameRules]).read().unwrap_or(0) };
+        if game_rules.is_zero() {
+            sleep(Duration::from_secs(2));
+            continue;
+        }
         //let m_wm = DataMember::<bool>::new_offset(handle.0, vec![game_rules + offsets::C_CSGameRules::m_bWarmupPeriod]);
         let m_st = DataMember::<bool>::new_offset(handle.0, vec![game_rules + offsets::C_CSGameRules::m_bHasMatchStarted]);
         //let is_warmup = unsafe { m_wm.read().unwrap_or(false) };
@@ -112,11 +114,18 @@ fn main() -> Res {
                 list_entry = unsafe { DataMember::<usize>::new_offset(handle.0, vec![entity_list + 0x10]).read().unwrap() };
                 println!("entity list is empty");
             }
-            sleep(Duration::from_secs(7));
+            sleep(Duration::from_secs(5));
         }
     });
     let recv_cl3 = Arc::clone(&recv_cl);
 
+    update_entities(recv_cl3);
+
+
+    Ok(())
+}
+
+fn update_entities(recv_cl3: Arc<Receiver<u8>>) {
     std::thread::spawn(move || {
         loop {
             if let Ok(_) = recv_cl3.try_recv() { return; }
@@ -135,9 +144,6 @@ fn main() -> Res {
             sleep(Duration::from_millis(21));
         }
     }).join().unwrap();
-
-
-    Ok(())
 }
 
 

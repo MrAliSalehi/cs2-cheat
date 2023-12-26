@@ -17,7 +17,6 @@ use crate::gui::setting::GeneralSetting;
 
 #[derive(Clone)]
 pub struct CsOverlay {
-    pub frame: u32,
     pub misc: Misc,
     pub general_settings: GeneralSetting,
     pub esp: Esp,
@@ -34,7 +33,6 @@ impl CsOverlay {
     pub fn new(abortion_signal: Sender<u8>, process_name: Vec<u16>) -> Self {
         Self {
             abortion_signal,
-            frame: 0,
             esp: Esp::default(),
             misc: Misc {},
             general_settings: GeneralSetting::default(),
@@ -75,7 +73,7 @@ impl CsOverlay {
             glfw_backend.window.set_should_close(true);
         }
     }
-    fn draw_visuals(&self, entities: Iter<Entity>, local_player_team: u8, painter: &Painter) {
+    fn draw_visuals(&mut self, entities: Iter<Entity>, local_player_team: u8, painter: &Painter) {
         for entity in entities {
             continue_if!(entity.health == 0);
             let Some(screen_pos) = world_to_screen(entity.origin, &self.esp.game_rect) else { continue; };
@@ -94,15 +92,21 @@ impl CsOverlay {
             let w = width;
             let h = height;
 
-            let color = if entity.team_number != local_player_team {
-                Color32::from_rgba_premultiplied((255 - entity.health) as u8, (55 + entity.health * 2) as u8, (140 - entity.health) as u8, 255)
-            } else {
-                if !self.esp.team_box { continue; }
-                Color32::WHITE
-            };
+            //esp box
+            if self.esp.show_box {
+                let box_stroke = if entity.team_number == local_player_team {
+                    if self.esp.team_box { Some(self.esp.team_box_stroke) } else { None }
+                } else {
+                    if self.esp.enemy_box_color_by_health {
+                        self.esp.enemy_box_stroke.color = entity.calculate_color();
+                    }
+                    Some(self.esp.enemy_box_stroke)
+                };
+                if let Some(box_stroke) = box_stroke {
+                    painter.rect_stroke(Rect::from_min_max((x, y).into(), (x + w, y + h).into()), self.esp.box_rounding, box_stroke);
+                }
+            }
 
-            //esp border position
-            painter.rect_stroke(Rect::from_min_max((x, y).into(), (x + w, y + h).into()), self.esp.rounding, Stroke::new(3.0, color));
 
             //esp name
             painter.text(Pos2::from((screen_head.x + (width / 2.5), screen_head.y)),
@@ -112,17 +116,33 @@ impl CsOverlay {
                          Color32::from(Rgba::BLUE));
 
             //health bar
+            let health_bar_stroke = if entity.team_number == local_player_team {
+                if self.esp.team_health_bar { Some(self.esp.team_health_bar_stroke) } else { None }
+            } else {
+                if self.esp.enemy_health_bar {
+                    if self.esp.enemy_health_bar_color_by_health {
+                        self.esp.enemy_health_bar_stroke.color = entity.calculate_color();
+                    }
+                    Some(self.esp.enemy_health_bar_stroke)
+                } else { None }
+            };
+            if let Some(health_bar_stroke) = health_bar_stroke {
+                let x = screen_head.x - (width / 2.0 + 5.0);
+                let y = screen_head.y + (height * (100 - entity.health) as f32 / 100.0);
+                let h = height - (height * (100 - entity.health) as f32 / 100.0);
 
-            let x = screen_head.x - (width / 2.0 + 5.0);
-            let y = screen_head.y + (height * (100 - entity.health) as f32 / 100.0);
-            let h = height - (height * (100 - entity.health) as f32 / 100.0);
-            painter.rect_stroke(Rect::from_min_max((x - 2.0, y - 2.0).into(), (x, y + h).into()), self.esp.rounding, Stroke::new(3.0, color));
+                painter.rect_stroke(Rect::from_min_max((x - 2.0, y - 2.0).into(), (x, y + h).into()), self.esp.health_bar_rounding, health_bar_stroke);
+            }
 
-            for (from, to) in BONE_CONNECTIONS.iter() {
-                let Some(from) = entity.bones.get(*from) else { continue; };
-                let Some(to) = entity.bones.get(*to) else { continue; };
 
-                painter.line_segment([Pos2::new(from.x, from.y), Pos2::new(to.x, to.y)], Stroke::new(2.0, Color32::RED));
+            //bones
+            if self.esp.bones {
+                for (from, to) in BONE_CONNECTIONS.iter() {
+                    let Some(from) = entity.bones.get(*from) else { continue; };
+                    let Some(to) = entity.bones.get(*to) else { continue; };
+
+                    painter.line_segment([Pos2::new(from.x, from.y), Pos2::new(to.x, to.y)], Stroke::new(2.0, Color32::RED));
+                }
             }
         }
     }
@@ -139,11 +159,12 @@ impl EguiOverlay for CsOverlay {
             catppuccin_egui::set_theme(egui_context, catppuccin_egui::MOCHA);
             self.first_frame = false;
         }
-        if !self.found_game {
+        let is_running = self.game_running(self.process_name.as_ptr());
+        if !is_running {
             glfw_backend.window.set_pos(0, 0);
             glfw_backend.window.set_size(500, 500);
             self.waiting_ui(egui_context, glfw_backend);
-            self.found_game = self.game_running(self.process_name.as_ptr());
+            //self.found_game = self.game_running(self.process_name.as_ptr());
             return;
         }
         let cs_size = WINDOW_POS.lock().unwrap();
@@ -161,12 +182,12 @@ impl EguiOverlay for CsOverlay {
         self.esp.area_pos = Pos2::new(game_bound_x as f32, game_bound_y as f32);
         self.esp.area_size = vec2(game_bound_right as f32, game_bound_bottom as f32);
 
-        Window::new("")
+        Window::new("cs2 external cheat")
             .resizable(true)
             .vscroll(true)
             .hscroll(true)
             .open(&mut self.open)
-            .default_size([250.0, 150.0])
+            .default_size([300.0, 330.0])
             .show(egui_context, |ui|
                 {
                     ui.horizontal(|ui| {
