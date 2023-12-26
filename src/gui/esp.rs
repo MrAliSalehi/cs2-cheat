@@ -1,12 +1,6 @@
-use std::ptr::null;
-use std::slice::Iter;
-use egui::{Align2, Color32, FontId, Order, Painter, Pos2, Rect, Rgba, Rounding, Sense, Stroke, Ui, vec2, Vec2};
+use egui::{Pos2, Rounding, Ui, Vec2};
 use winapi::shared::windef::RECT;
-use winapi::um::winuser::FindWindowW;
-use crate::continue_if;
-use crate::entity::Entity;
-use crate::globals::{BONE_CONNECTIONS, ENTITY_LIST, LOCAL_PLAYER};
-use crate::gui::{OverlayTab, world_to_screen};
+use crate::gui::{OverlayTab};
 
 #[derive(Clone)]
 pub struct Esp {

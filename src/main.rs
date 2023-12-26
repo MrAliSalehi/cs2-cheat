@@ -1,11 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{thread::sleep, time::Duration};
-use std::ffi::OsStr;
-use std::iter::once;
-use std::os::windows::ffi::OsStrExt;
-use std::sync::Arc;
-use egui::{Rounding};
+use std::{thread::sleep, time::Duration, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, sync::Arc};
 use egui_overlay::{egui_render_three_d::three_d::Zero, start};
 use nalgebra::{Vector3};
 use proc_mem::{Process};
@@ -19,12 +14,7 @@ mod models;
 mod globals;
 
 pub use prelude::*;
-use crate::entity::{Entity};
-use crate::globals::{ENTITY_LIST, LOCAL_PLAYER};
-use crate::gui::cs2_overlay::CsOverlay;
-use crate::models::local_player::LocalPlayer;
-use crate::models::process_handle::ProcHandle;
-use crate::offsets::C_LocalTempEntity::priority;
+use crate::{gui::cs2_overlay::CsOverlay, globals::{ENTITY_LIST, LOCAL_PLAYER}, entity::{Entity}, models::{local_player::LocalPlayer, process_handle::ProcHandle}};
 
 
 #[cfg(not(target_pointer_width = "64"))]
@@ -39,7 +29,7 @@ fn main() -> Res {
 
     let receiver = Arc::new(receiver);
 
-    std::thread::spawn(|| start(CsOverlay::new(sender,name)));
+    std::thread::spawn(|| start(CsOverlay::new(sender, name)));
 
     let recv_cl = Arc::clone(&receiver);
     let proc = loop {
@@ -75,7 +65,7 @@ fn main() -> Res {
     let mut entity_list = unsafe {
         loop {
             let res = DataMember::<usize>::new_offset(handle.0, vec![base + offsets::client_dll::dwEntityList]).read();
-            if res.is_ok() { break res.unwrap(); }
+            if let Ok(r) = res { break r; }
             sleep(Duration::from_secs(2));
         }
     };
@@ -83,7 +73,7 @@ fn main() -> Res {
     let mut list_entry = unsafe {
         loop {
             let res = DataMember::<usize>::new_offset(handle.0, vec![entity_list + 0x10]).read();
-            if res.is_ok() { break res.unwrap(); }
+            if let Ok(r) = res { break r; }
             sleep(Duration::from_secs(2));
         }
     };
@@ -138,8 +128,8 @@ fn main() -> Res {
                 continue;
             }
             rf.iter_mut().for_each(|f| {
-                    f.update()
-                }
+                f.update()
+            }
             );
             drop(rf);
             sleep(Duration::from_millis(21));
@@ -197,7 +187,7 @@ fn get_entities(handle: ProcHandle, list_entry: usize, entity_list: usize) -> ey
 
         entities.push(entity);
     }
-    let len = (&entities).len();
+    let len = entities.len();
     *ENTITY_LIST.lock().unwrap() = entities;
 
     Ok(len)

@@ -1,14 +1,7 @@
-use std::ffi::OsStr;
-use std::iter::once;
-use std::os::windows::ffi::OsStrExt;
 use std::ptr::null;
 use std::slice::Iter;
-use std::sync::Arc;
-use std::thread::sleep;
-use std::time::Duration;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{Sender};
 use egui::{Align2, Color32, Context, FontId, Order, Painter, Pos2, Rect, Rgba, Rounding, Sense, Stroke, Vec2, vec2, Window};
-use egui::epaint::TextShape;
 use egui_overlay::{EguiOverlay};
 use egui_overlay::egui_render_three_d::ThreeDBackend;
 use egui_overlay::egui_window_glfw_passthrough::GlfwBackend;
