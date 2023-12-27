@@ -1,4 +1,4 @@
-use egui::{CollapsingHeader, Color32, Pos2, Rounding, Stroke, Ui, Vec2};
+use egui::{CollapsingHeader, Color32, Pos2, Stroke, Ui, Vec2};
 use winapi::shared::windef::RECT;
 use crate::gui::{OverlayTab};
 
@@ -31,6 +31,13 @@ pub struct Esp {
 
     pub team_bone_stroke: Stroke,
     pub enemy_bone_stroke: Stroke,
+
+    pub enable_name: bool,
+    pub team_name: bool,
+    pub team_name_color: Color32,
+    pub team_name_size: f32,
+    pub enemy_name_color: Color32,
+    pub enemy_name_size: f32,
 }
 
 
@@ -42,6 +49,7 @@ impl OverlayTab for Esp {
         self.esp_box(ui);
         self.health_bar(ui);
         self.bones(ui);
+        self.name(ui);
     }
 }
 
@@ -131,7 +139,7 @@ impl Esp {
     fn bones(&mut self, ui: &mut Ui) {
         CollapsingHeader::new("bones")
             .default_open(false)
-            .show(ui,|ui| {
+            .show(ui, |ui| {
                 ui.checkbox(&mut self.team_bones, "team");
                 if self.team_bones {
                     ui.horizontal(|ui| {
@@ -154,6 +162,41 @@ impl Esp {
                     ui.horizontal(|ui| {
                         ui.label("thickness:");
                         ui.add(egui::Slider::new(&mut self.enemy_bone_stroke.width, 0.1..=15.0));
+                    });
+                }
+            });
+    }
+    fn name(&mut self, ui: &mut Ui) {
+        CollapsingHeader::new("name")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.checkbox(&mut self.enable_name, "enable");
+                if self.enable_name {
+                    ui.horizontal(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("enemy name color:");
+                            ui.color_edit_button_srgba(&mut self.enemy_name_color);
+                        });
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("enemy name size:");
+                        ui.add(egui::Slider::new(&mut self.enemy_name_size, 0.5..=25.0));
+                    });
+                }
+                ui.separator();
+
+                ui.checkbox(&mut self.team_name, "team");
+
+                if self.team_name {
+                    ui.horizontal(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("color:");
+                            ui.color_edit_button_srgba(&mut self.team_name_color);
+                        });
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("size:");
+                        ui.add(egui::Slider::new(&mut self.team_name_size, 0.5..=25.0));
                     });
                 }
             });
@@ -183,6 +226,12 @@ impl Default for Esp {
             enemy_health_bar_color_by_health: true,
             enemy_bone_stroke: Stroke::new(1.5, Color32::RED),
             team_bone_stroke: Stroke::new(1.5, Color32::GREEN),
+            team_name: true,
+            enable_name: true,
+            enemy_name_color: Color32::RED,
+            team_name_color: Color32::YELLOW,
+            team_name_size: 12.0,
+            enemy_name_size: 12.0,
         }
     }
 }

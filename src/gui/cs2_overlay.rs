@@ -1,7 +1,7 @@
 use std::ptr::null;
 use std::slice::Iter;
 use crossbeam_channel::{Sender};
-use egui::{Align2, Color32, Context, FontId, Order, Painter, Pos2, Rect, Rgba, Rounding, Sense, Stroke, Vec2, vec2, Window};
+use egui::{Align2, Color32, Context, FontId, Order, Painter, Pos2, Rect, Rounding, Sense, Stroke, Vec2, vec2, Window};
 use egui_overlay::{EguiOverlay};
 use egui_overlay::egui_render_three_d::ThreeDBackend;
 use egui_overlay::egui_window_glfw_passthrough::GlfwBackend;
@@ -79,6 +79,7 @@ impl CsOverlay {
             let Some(screen_pos) = world_to_screen(entity.origin, &self.esp.game_rect) else { continue; };
             let Some(screen_head) = world_to_screen(entity.head, &self.esp.game_rect) else { continue; };
 
+            let is_teammate = entity.team_number == local_player_team;
             let height = screen_pos.y - screen_head.y;
             let width = height / 2.4f32;
 
@@ -94,7 +95,7 @@ impl CsOverlay {
 
             //esp box
             if self.esp.show_box {
-                let box_stroke = if entity.team_number == local_player_team {
+                let box_stroke = if is_teammate {
                     if self.esp.team_box { Some(self.esp.team_box_stroke) } else { None }
                 } else {
                     if self.esp.enemy_box_color_by_health {
@@ -109,14 +110,23 @@ impl CsOverlay {
 
 
             //esp name
-            painter.text(Pos2::from((screen_head.x + (width / 2.5), screen_head.y)),
-                         Align2::CENTER_BOTTOM,
-                         format!("({})", entity.name),
-                         FontId::monospace(10.0),
-                         Color32::from(Rgba::BLUE));
+            if self.esp.enable_name {
+                let name_stroke = if is_teammate {
+                    if self.esp.team_name { Some((self.esp.team_name_size, self.esp.team_name_color)) } else { None }
+                } else {
+                    Some((self.esp.enemy_name_size, self.esp.enemy_name_color))
+                };
+                if let Some((size, color)) = name_stroke {
+                    painter.text(Pos2::from((screen_head.x + (width / 2.5), screen_head.y)),
+                                 Align2::CENTER_BOTTOM,
+                                 format!("({})", entity.name),
+                                 FontId::monospace(size),
+                                 color);
+                }
+            }
 
             //health bar
-            let health_bar_stroke = if entity.team_number == local_player_team {
+            let health_bar_stroke = if is_teammate {
                 if self.esp.team_health_bar { Some(self.esp.team_health_bar_stroke) } else { None }
             } else {
                 if self.esp.enemy_health_bar {
@@ -135,14 +145,14 @@ impl CsOverlay {
             }
 
             //bones
-            let bone_stroke = if entity.team_number == local_player_team {
+            let bone_stroke = if is_teammate {
                 if self.esp.team_bones { Some(self.esp.team_bone_stroke) } else { None }
             } else {
                 if self.esp.enemy_bones {
                     /*if _color_by_health { todo: could be possible
                         self.esp.enemy_health_bar_stroke.color = entity.calculate_color();
                     }*/
-                    Some(self.esp.enemy_health_bar_stroke)
+                    Some(self.esp.enemy_bone_stroke)
                 } else { None }
             };
             if let Some(bone_stroke) = bone_stroke {
