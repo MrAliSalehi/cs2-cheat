@@ -134,14 +134,23 @@ impl CsOverlay {
                 painter.rect_stroke(Rect::from_min_max((x - 2.0, y - 2.0).into(), (x, y + h).into()), self.esp.health_bar_rounding, health_bar_stroke);
             }
 
-
             //bones
-            if self.esp.bones {
+            let bone_stroke = if entity.team_number == local_player_team {
+                if self.esp.team_bones { Some(self.esp.team_bone_stroke) } else { None }
+            } else {
+                if self.esp.enemy_bones {
+                    /*if _color_by_health { todo: could be possible
+                        self.esp.enemy_health_bar_stroke.color = entity.calculate_color();
+                    }*/
+                    Some(self.esp.enemy_health_bar_stroke)
+                } else { None }
+            };
+            if let Some(bone_stroke) = bone_stroke {
                 for (from, to) in BONE_CONNECTIONS.iter() {
                     let Some(from) = entity.bones.get(*from) else { continue; };
                     let Some(to) = entity.bones.get(*to) else { continue; };
 
-                    painter.line_segment([Pos2::new(from.x, from.y), Pos2::new(to.x, to.y)], Stroke::new(2.0, Color32::RED));
+                    painter.line_segment([Pos2::new(from.x, from.y), Pos2::new(to.x, to.y)], bone_stroke);
                 }
             }
         }
@@ -160,13 +169,13 @@ impl EguiOverlay for CsOverlay {
             self.first_frame = false;
         }
         let is_running = self.game_running(self.process_name.as_ptr());
-        if !is_running {
+        /*if !is_running {
             glfw_backend.window.set_pos(0, 0);
             glfw_backend.window.set_size(500, 500);
             self.waiting_ui(egui_context, glfw_backend);
             //self.found_game = self.game_running(self.process_name.as_ptr());
             return;
-        }
+        }*/
         let cs_size = WINDOW_POS.lock().unwrap();
         let game_bound_y = 0;
         let game_bound_x = 0;
@@ -187,7 +196,7 @@ impl EguiOverlay for CsOverlay {
             .vscroll(true)
             .hscroll(true)
             .open(&mut self.open)
-            .default_size([300.0, 330.0])
+            .default_size([350.0, 330.0])
             .show(egui_context, |ui|
                 {
                     ui.horizontal(|ui| {
@@ -205,30 +214,31 @@ impl EguiOverlay for CsOverlay {
                     ui.allocate_space(ui.available_size());
                 });
 
-        egui::Area::new("overlay")
-            .interactable(false)
-            .fixed_pos(self.esp.area_pos)
-            .order(Order::Background)
-            .show(egui_context, |ui| {
-                let (rect, _) = ui.allocate_at_least(self.esp.area_size, Sense { focusable: false, drag: false, click: false });
-                let painter = ui.painter();
-                if self.general_settings.show_borders {
-                    painter.rect_stroke(rect, Rounding::from(3.0), Stroke::new(3.0, Color32::YELLOW));
-                }
 
-                let g_entities = ENTITY_LIST.lock().unwrap();
-                let entities = g_entities.iter();
+        if self.esp.enabled {
+            egui::Area::new("overlay")
+                .interactable(false)
+                .fixed_pos(self.esp.area_pos)
+                .order(Order::Background)
+                .show(egui_context, |ui| {
+                    let (rect, _) = ui.allocate_at_least(self.esp.area_size, Sense { focusable: false, drag: false, click: false });
+                    let painter = ui.painter();
+                    if self.general_settings.show_borders {
+                        painter.rect_stroke(rect, Rounding::from(3.0), Stroke::new(3.0, Color32::YELLOW));
+                    }
 
-                let g_local_player = LOCAL_PLAYER.lock().unwrap();
-                let local_player_team = g_local_player.entity.team_number;
-                drop(g_local_player);
+                    let g_entities = ENTITY_LIST.lock().unwrap();
+                    let entities = g_entities.iter();
 
-                if self.esp.enabled {
+                    let g_local_player = LOCAL_PLAYER.lock().unwrap();
+                    let local_player_team = g_local_player.entity.team_number;
+                    drop(g_local_player);
+
                     self.draw_visuals(entities, local_player_team, painter);
-                }
-                drop(g_entities);
-            });
 
+                    drop(g_entities);
+                });
+        }
 
         if egui_context.wants_pointer_input() || egui_context.wants_keyboard_input() {
             glfw_backend.window.set_mouse_passthrough(false);
