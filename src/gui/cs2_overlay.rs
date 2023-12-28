@@ -106,11 +106,18 @@ impl CsOverlay {
             }
 
             //weapon
-
-            painter.text(Pos2::new(screen_head.x + (width / 2.0 - 40.0), screen_head.y + height + 10.0),
-                         Align2::CENTER_BOTTOM,
-                         &entity.weapon,
-                         FontId::monospace(10.0), Color32::RED);
+            let weapon = if is_teammate {
+                if self.esp.team_weapon { Some((self.esp.team_weapon_color, self.esp.team_weapon_size)) } else { None }
+            } else {
+                if self.esp.enemy_weapon { Some((self.esp.enemy_weapon_color, self.esp.enemy_weapon_size)) } else { None }
+            };
+            if let Some((color, size)) = weapon {
+                let p = Pos2::new(screen_head.x + (width / 2.0 - 40.0), screen_head.y + height + 10.0);
+                painter.text(p, Align2::CENTER_BOTTOM, &entity.weapon, FontId::monospace(size), color);
+            }
+            //TODO: is flashed
+            //TODO: is scopped
+            //TODO: is defusing
 
             //distance
             let d = if is_teammate {
@@ -260,7 +267,7 @@ impl EguiOverlay for CsOverlay {
         self.esp.area_pos = Pos2::new(game_bound_x as f32, game_bound_y as f32);
         self.esp.area_size = vec2(game_bound_right as f32, game_bound_bottom as f32);
 
-        Window::new("cs2 external cheat")
+        Window::new("cs2 external cheat | beta")
             .resizable(true)
             .vscroll(true)
             .hscroll(true)

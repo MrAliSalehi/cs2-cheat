@@ -37,8 +37,8 @@ pub struct Esp {
     pub enemy_name: bool,
     pub team_name: bool,
     pub team_name_color: Color32,
-    pub team_name_size: f32,
     pub enemy_name_color: Color32,
+    pub team_name_size: f32,
     pub enemy_name_size: f32,
     pub enemy_name_placeholder: String,
     pub team_name_placeholder: String,
@@ -56,6 +56,13 @@ pub struct Esp {
     pub enemy_distance_color: Color32,
     pub team_distance_size: f32,
     pub enemy_distance_size: f32,
+
+    pub team_weapon: bool,
+    pub enemy_weapon: bool,
+    pub team_weapon_color: Color32,
+    pub enemy_weapon_color: Color32,
+    pub team_weapon_size: f32,
+    pub enemy_weapon_size: f32,
     //pub name_maps: HashMap<(Template, EntityName), Arc<String>>,
 }
 
@@ -74,6 +81,7 @@ impl OverlayTab for Esp {
         self.name(ui);
         self.hp_text(ui);
         self.distance(ui);
+        self.weapon(ui);
     }
 }
 
@@ -266,7 +274,7 @@ impl Esp {
             .show(ui, |ui| {
                 ui.horizontal(|ui|{
                     ui.separator();
-                    ui.label(egui::RichText::new("this feature is experimental and may not work correctly or show false information!")
+                    ui.label(egui::RichText::new("this feature is experimental and may not work correctly or display false information!")
                         .color(Color32::DARK_GRAY)
                         .size(11.0))
                 });
@@ -292,6 +300,35 @@ impl Esp {
                     ui.horizontal(|ui| {
                         ui.label("size:");
                         ui.add(egui::Slider::new(&mut self.team_distance_size, 0.5..=25.0));
+                    });
+                }
+            });
+    }
+    fn weapon(&mut self, ui: &mut Ui) {
+        CollapsingHeader::new("weapon")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.checkbox(&mut self.enemy_weapon, "enemy weapon");
+                if self.enemy_weapon {
+                    ui.horizontal(|ui| {
+                        ui.label("color:");
+                        ui.color_edit_button_srgba(&mut self.enemy_weapon_color);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("size:");
+                        ui.add(egui::Slider::new(&mut self.enemy_weapon_size, 0.5..=25.0));
+                    });
+                }
+                ui.separator();
+                ui.checkbox(&mut self.team_weapon, "team weapon");
+                if self.team_weapon {
+                    ui.horizontal(|ui| {
+                        ui.label("color:");
+                        ui.color_edit_button_srgba(&mut self.team_weapon_color);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("size:");
+                        ui.add(egui::Slider::new(&mut self.team_weapon_size, 0.5..=25.0));
                     });
                 }
             });
@@ -356,6 +393,13 @@ impl Default for Esp {
             team_distance_size: 10.0,
             enemy_distance_color: Color32::RED,
             team_distance_color: Color32::DARK_BLUE,
+
+            enemy_weapon: false,
+            team_weapon: false,
+            enemy_weapon_size: 10.0,
+            team_weapon_size: 10.0,
+            enemy_weapon_color: Color32::RED,
+            team_weapon_color: Color32::DARK_BLUE,
         }
     }
 }
