@@ -1,5 +1,6 @@
 use std::ptr::null;
 use std::slice::Iter;
+use std::sync::Arc;
 use crossbeam_channel::{Sender};
 use egui::{Align2, Color32, Context, FontId, Order, Painter, Pos2, Rect, Rounding, Sense, Stroke, Vec2, vec2, Window};
 use egui_overlay::{EguiOverlay};
@@ -84,14 +85,8 @@ impl CsOverlay {
             let width = height / 2.4f32;
 
             let g_local = LOCAL_PLAYER.lock().unwrap();
-            let _distance = g_local.calc_distance_rounded(entity.origin);
+            let distance = g_local.calc_distance_rounded(entity.origin);
             drop(g_local);
-
-            //draw visuals
-            let x = screen_head.x - width / 2.0;
-            let y = screen_head.y;
-            let w = width;
-            let h = height;
 
             //esp box
             if self.esp.show_box {
@@ -104,25 +99,56 @@ impl CsOverlay {
                     Some(self.esp.enemy_box_stroke)
                 };
                 if let Some(box_stroke) = box_stroke {
-                    painter.rect_stroke(Rect::from_min_max((x, y).into(), (x + w, y + h).into()), self.esp.box_rounding, box_stroke);
+                    let x = screen_head.x - width / 2.0;
+                    let y = screen_head.y;
+                    painter.rect_stroke(Rect::from_min_max((x, y).into(), (x + width, y + height).into()), self.esp.box_rounding, box_stroke);
                 }
+            }
+
+            //weapon
+
+            painter.text(Pos2::new(screen_head.x + (width / 2.0 - 40.0), screen_head.y + height + 10.0),
+                         Align2::CENTER_BOTTOM,
+                         &entity.weapon,
+                         FontId::monospace(10.0), Color32::RED);
+
+            //distance
+            painter.text(Pos2::new(screen_head.x + (width / 2.0 + 5.0), screen_head.y + height + 10.0),
+                         Align2::CENTER_BOTTOM,
+                         format!("|{}M|", distance),
+                         FontId::monospace(12.0), Color32::BLACK);
+
+
+            //hp text
+            let hp_text = if is_teammate {
+                if self.esp.team_hp_text { Some((self.esp.team_hp_text_color, self.esp.team_hp_text_size)) } else { None }
+            } else {
+                if self.esp.enemy_hp_text { Some((self.esp.enemy_hp_text_color, self.esp.enemy_hp_text_size)) } else { None }
+            };
+            if let Some((color, size)) = hp_text {
+                painter.text(Pos2::new(screen_head.x - 35.0, screen_head.y - 5.0),
+                             Align2::CENTER_BOTTOM, format!("{}HP", entity.health), FontId::monospace(size), color);
             }
 
 
             //esp name
-            if self.esp.enable_name {
-                let name_stroke = if is_teammate {
-                    if self.esp.team_name { Some((self.esp.team_name_size, self.esp.team_name_color)) } else { None }
+            let name_stroke = if is_teammate {
+                if self.esp.team_name { Some((self.esp.team_name_size, self.esp.team_name_color, &self.esp.team_name_placeholder)) } else { None }
+            } else {
+                if self.esp.enemy_name { Some((self.esp.enemy_name_size, self.esp.enemy_name_color, &self.esp.enemy_name_placeholder)) } else { None }
+            };
+
+            if let Some((size, color, placeholder)) = name_stroke {
+                let p = Pos2::from((screen_head.x + (width / 2.5), screen_head.y - 5.0));
+                /*let name = if let Some(name) = self.esp.name_maps.get(&(Arc::clone(&placeholder), Arc::clone(&entity.name))) {
+                    Arc::clone(&name)
                 } else {
-                    Some((self.esp.enemy_name_size, self.esp.enemy_name_color))
-                };
-                if let Some((size, color)) = name_stroke {
-                    painter.text(Pos2::from((screen_head.x + (width / 2.5), screen_head.y)),
-                                 Align2::CENTER_BOTTOM,
-                                 format!("({})", entity.name),
-                                 FontId::monospace(size),
-                                 color);
-                }
+                    let name = Arc::new(placeholder.replace('/', &entity.name));
+                    self.esp.name_maps.insert((placeholder, Arc::clone(&entity.name)), Arc::clone(&name));
+                    name
+                };*/
+
+                painter.text(p, Align2::CENTER_BOTTOM, placeholder.replace('/', &*entity.name), FontId::monospace(size), color);
             }
 
             //health bar
@@ -144,26 +170,54 @@ impl CsOverlay {
                 painter.rect_stroke(Rect::from_min_max((x - 2.0, y - 2.0).into(), (x, y + h).into()), self.esp.health_bar_rounding, health_bar_stroke);
             }
 
-            //bones
-            let bone_stroke = if is_teammate {
-                if self.esp.team_bones { Some(self.esp.team_bone_stroke) } else { None }
-            } else {
-                if self.esp.enemy_bones {
-                    /*if _color_by_health { todo: could be possible
-                        self.esp.enemy_health_bar_stroke.color = entity.calculate_color();
-                    }*/
-                    Some(self.esp.enemy_bone_stroke)
-                } else { None }
-            };
-            if let Some(bone_stroke) = bone_stroke {
-                for (from, to) in BONE_CONNECTIONS.iter() {
-                    let Some(from) = entity.bones.get(*from) else { continue; };
-                    let Some(to) = entity.bones.get(*to) else { continue; };
+            self.draw_bones(painter, entity, is_teammate);
+        }
+    }
 
-                    painter.line_segment([Pos2::new(from.x, from.y), Pos2::new(to.x, to.y)], bone_stroke);
-                }
+    fn draw_bones(&mut self, painter: &Painter, entity: &Entity, is_teammate: bool) {
+        let bone_stroke = if is_teammate {
+            if self.esp.team_bones { Some(self.esp.team_bone_stroke) } else { None }
+        } else {
+            if self.esp.enemy_bones {
+                /*if _color_by_health { todo: could be possible
+                    self.esp.enemy_health_bar_stroke.color = entity.calculate_color();
+                }*/
+                Some(self.esp.enemy_bone_stroke)
+            } else { None }
+        };
+        if let Some(bone_stroke) = bone_stroke {
+            for (from, to) in BONE_CONNECTIONS.iter() {
+                let Some(from) = entity.bones.get(*from) else { continue; };
+                let Some(to) = entity.bones.get(*to) else { continue; };
+
+                painter.line_segment([Pos2::new(from.x, from.y), Pos2::new(to.x, to.y)], bone_stroke);
             }
         }
+    }
+
+    fn esp_overlay(&mut self, egui_context: &Context) {
+        egui::Area::new("overlay")
+            .interactable(false)
+            .fixed_pos(self.esp.area_pos)
+            .order(Order::Background)
+            .show(egui_context, |ui| {
+                let (rect, _) = ui.allocate_at_least(self.esp.area_size, Sense { focusable: false, drag: false, click: false });
+                let painter = ui.painter();
+                if self.general_settings.show_borders {
+                    painter.rect_stroke(rect, Rounding::from(3.0), Stroke::new(3.0, Color32::YELLOW));
+                }
+
+                let g_entities = ENTITY_LIST.lock().unwrap();
+                let entities = g_entities.iter();
+
+                let g_local_player = LOCAL_PLAYER.lock().unwrap();
+                let local_player_team = g_local_player.entity.team_number;
+                drop(g_local_player);
+
+                self.draw_visuals(entities, local_player_team, painter);
+
+                drop(g_entities);
+            });
     }
 }
 
@@ -226,28 +280,7 @@ impl EguiOverlay for CsOverlay {
 
 
         if self.esp.enabled {
-            egui::Area::new("overlay")
-                .interactable(false)
-                .fixed_pos(self.esp.area_pos)
-                .order(Order::Background)
-                .show(egui_context, |ui| {
-                    let (rect, _) = ui.allocate_at_least(self.esp.area_size, Sense { focusable: false, drag: false, click: false });
-                    let painter = ui.painter();
-                    if self.general_settings.show_borders {
-                        painter.rect_stroke(rect, Rounding::from(3.0), Stroke::new(3.0, Color32::YELLOW));
-                    }
-
-                    let g_entities = ENTITY_LIST.lock().unwrap();
-                    let entities = g_entities.iter();
-
-                    let g_local_player = LOCAL_PLAYER.lock().unwrap();
-                    let local_player_team = g_local_player.entity.team_number;
-                    drop(g_local_player);
-
-                    self.draw_visuals(entities, local_player_team, painter);
-
-                    drop(g_entities);
-                });
+            self.esp_overlay(egui_context);
         }
 
         if egui_context.wants_pointer_input() || egui_context.wants_keyboard_input() {

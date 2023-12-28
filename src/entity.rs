@@ -25,7 +25,7 @@ pub struct Entity {
     pub controller: usize,
 
     pub handle: ProcessHandle,
-    pub name: String,
+    pub name: Arc<String>,
     pub weapon_name_ptr: usize,
     pub money_service: usize,
 
@@ -100,10 +100,10 @@ impl Entity {
         if health.is_zero() { return Err(eyre::Report::msg("player is dead")); }
 
 
-        entity.name = String::from_utf8(unsafe {
+        entity.name = Arc::new(String::from_utf8(unsafe {
             DataMember::<[u8; 16]>::new_offset(handle, vec![controller + offsets::CBasePlayerController::m_iszPlayerName])
                 .read().unwrap().to_vec()
-        }).unwrap_or(String::from("crappy name"));
+        }).unwrap_or(String::from("crappy name")));
 
         let clipping_weapon = unsafe {
             DataMember::<usize>::new_offset(handle, vec![pawn + offsets::C_CSPlayerPawnBase::m_pClippingWeapon])
@@ -160,7 +160,7 @@ impl Entity {
                 weapon_name = String::from("awp");
             }
         }
-        weapon_name
+        weapon_name.replace("weapon_","")
     }
     pub fn calculate_color(&self) -> Color32 {
         Color32::from_rgba_premultiplied((255 - self.health) as u8, (55 + self.health * 2) as u8, (140 - self.health) as u8, 255)
@@ -173,7 +173,7 @@ impl Debug for Entity {
         f.write_str(&format!("name:{},health:{},team ({}):{},weapon:{},origin:({},{},{}),money:{},spent:{}, bone: {:?}",
                              self.name, self.health, self.team_number, self.team_str, self.weapon,
                              self.origin.x, self.origin.y, self.origin.z,
-                             self.money, self.spent_money,self.bones
+                             self.money, self.spent_money, self.bones
         ))
     }
 }
@@ -181,7 +181,7 @@ impl Debug for Entity {
 impl Default for Entity {
     fn default() -> Self {
         Self {
-            name: String::default(),
+            name: Arc::new(String::default()),
             head: Vector3::<f32>::default(),
             health: 0,
             team_number: 0,

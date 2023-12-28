@@ -1,4 +1,6 @@
-use egui::{CollapsingHeader, Color32, Pos2, Stroke, Ui, Vec2};
+use std::collections::HashMap;
+use std::sync::Arc;
+use egui::{CollapsingHeader, Color32, Pos2, Stroke, Ui, Vec2, Widget};
 use winapi::shared::windef::RECT;
 use crate::gui::{OverlayTab};
 
@@ -32,14 +34,27 @@ pub struct Esp {
     pub team_bone_stroke: Stroke,
     pub enemy_bone_stroke: Stroke,
 
-    pub enable_name: bool,
+    pub enemy_name: bool,
     pub team_name: bool,
     pub team_name_color: Color32,
     pub team_name_size: f32,
     pub enemy_name_color: Color32,
     pub enemy_name_size: f32,
+    pub enemy_name_placeholder: String,
+    pub team_name_placeholder: String,
+
+    pub team_hp_text:bool,
+    pub enemy_hp_text:bool,
+    pub team_hp_text_color:Color32,
+    pub enemy_hp_text_color:Color32,
+    pub team_hp_text_size:f32,
+    pub enemy_hp_text_size:f32,
+    //pub name_maps: HashMap<(Template, EntityName), Arc<String>>,
 }
 
+
+//type Template = Arc<String>;
+//type EntityName = Arc<String>;
 
 impl OverlayTab for Esp {
     fn render_ui(&mut self, ui: &mut Ui) {
@@ -50,6 +65,7 @@ impl OverlayTab for Esp {
         self.health_bar(ui);
         self.bones(ui);
         self.name(ui);
+        self.hp_text(ui);
     }
 }
 
@@ -170,24 +186,30 @@ impl Esp {
         CollapsingHeader::new("name")
             .default_open(false)
             .show(ui, |ui| {
-                ui.checkbox(&mut self.enable_name, "enable");
-                if self.enable_name {
+                ui.checkbox(&mut self.enemy_name, "enemy name");
+                if self.enemy_name {
+                    Self::render_name_placeholder(ui,1);
+                    ui.text_edit_singleline(&mut self.enemy_name_placeholder);
+
                     ui.horizontal(|ui| {
                         ui.horizontal(|ui| {
-                            ui.label("enemy name color:");
+                            ui.label("color:");
                             ui.color_edit_button_srgba(&mut self.enemy_name_color);
                         });
                     });
                     ui.horizontal(|ui| {
-                        ui.label("enemy name size:");
+                        ui.label("size:");
                         ui.add(egui::Slider::new(&mut self.enemy_name_size, 0.5..=25.0));
                     });
                 }
                 ui.separator();
 
-                ui.checkbox(&mut self.team_name, "team");
+                ui.checkbox(&mut self.team_name, "team name");
 
                 if self.team_name {
+                    Self::render_name_placeholder(ui,2);
+                    ui.text_edit_singleline(&mut self.team_name_placeholder);
+
                     ui.horizontal(|ui| {
                         ui.horizontal(|ui| {
                             ui.label("color:");
@@ -200,6 +222,47 @@ impl Esp {
                     });
                 }
             });
+    }
+    pub fn hp_text(&mut self, ui: &mut Ui) {
+        CollapsingHeader::new("HP text")
+            .default_open(false)
+            .show(ui,|ui| {
+                ui.checkbox(&mut self.enemy_hp_text, "enemy hp text");
+                if self.enemy_hp_text {
+                    ui.horizontal(|ui| {
+                        ui.label("color:");
+                        ui.color_edit_button_srgba(&mut self.enemy_hp_text_color);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("size:");
+                        ui.add(egui::Slider::new(&mut self.enemy_hp_text_size, 0.5..=25.0));
+                    });
+                }
+                ui.separator();
+                ui.checkbox(&mut self.team_hp_text, "team hp text");
+                if self.team_hp_text {
+                    ui.horizontal(|ui| {
+                        ui.label("color:");
+                        ui.color_edit_button_srgba(&mut self.team_hp_text_color);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("size:");
+                        ui.add(egui::Slider::new(&mut self.team_hp_text_size, 0.5..=25.0));
+                    });
+                }
+            });
+    }
+    fn render_name_placeholder(ui: &mut Ui,id:u8) {
+        ui.horizontal(|ui| {
+            ui.label("placeholder:");
+            CollapsingHeader::new("?")
+                .default_open(false)
+                .id_source(id)
+                .show(ui, |ui|
+                    ui.label("using this feature you can customize the rendering process of name,\
+                     simply write anything you want and put a / (slash) as a placeholder for the player name")
+                );
+        });
     }
 }
 
@@ -227,11 +290,21 @@ impl Default for Esp {
             enemy_bone_stroke: Stroke::new(1.5, Color32::RED),
             team_bone_stroke: Stroke::new(1.5, Color32::GREEN),
             team_name: true,
-            enable_name: true,
+            enemy_name: true,
             enemy_name_color: Color32::RED,
             team_name_color: Color32::YELLOW,
             team_name_size: 12.0,
             enemy_name_size: 12.0,
+            //name_maps: HashMap::default(),
+            enemy_name_placeholder:String::from("(/)"),
+            team_name_placeholder:String::from("(/)"),
+
+            enemy_hp_text:false,
+            team_hp_text:false,
+            enemy_hp_text_size:10.0,
+            team_hp_text_size:10.0,
+            team_hp_text_color:Color32::RED,
+            enemy_hp_text_color:Color32::DARK_BLUE
         }
     }
 }

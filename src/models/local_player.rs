@@ -15,13 +15,13 @@ pub struct LocalPlayer {
 }
 
 impl LocalPlayer {
-    pub fn calc_distance_rounded(&self, second: Vector3<f32>) -> f32 {
+    pub fn calc_distance_rounded(&self, second: Vector3<f32>) -> i32 {
         let pov = self.entity.origin;
         let dx = second.x - pov.x;
         let dy = second.y - pov.y;
         let dz = second.z - pov.z;
 
-        ((dx * dx + dy * dy + dz * dz).sqrt()) / 10.0
+        (((dx * dx + dy * dy + dz * dz).sqrt()) / 10.0) as i32
     }
     pub fn update_view_matrix(base: usize, handle: ProcHandle,abort_sig: Arc<Receiver<u8>>) {
         std::thread::spawn(move || {
