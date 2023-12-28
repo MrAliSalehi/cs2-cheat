@@ -113,10 +113,15 @@ impl CsOverlay {
                          FontId::monospace(10.0), Color32::RED);
 
             //distance
-            painter.text(Pos2::new(screen_head.x + (width / 2.0 + 5.0), screen_head.y + height + 10.0),
-                         Align2::CENTER_BOTTOM,
-                         format!("|{}M|", distance),
-                         FontId::monospace(12.0), Color32::BLACK);
+            let d = if is_teammate {
+                if self.esp.team_distance { Some((self.esp.team_distance_color, self.esp.team_distance_size)) } else { None }
+            } else {
+                if self.esp.enemy_distance { Some((self.esp.enemy_distance_color, self.esp.enemy_distance_size)) } else { None }
+            };
+            if let Some((color, size)) = d {
+                let p =Pos2::new(screen_head.x + (width / 2.0 + 5.0), screen_head.y + height + 10.0);
+                painter.text(p, Align2::CENTER_BOTTOM, format!("|{}M|", distance), FontId::monospace(size), color);
+            }
 
 
             //hp text
@@ -126,8 +131,8 @@ impl CsOverlay {
                 if self.esp.enemy_hp_text { Some((self.esp.enemy_hp_text_color, self.esp.enemy_hp_text_size)) } else { None }
             };
             if let Some((color, size)) = hp_text {
-                painter.text(Pos2::new(screen_head.x - 35.0, screen_head.y - 5.0),
-                             Align2::CENTER_BOTTOM, format!("{}HP", entity.health), FontId::monospace(size), color);
+                let p = Pos2::new(screen_head.x - 35.0, screen_head.y - 5.0);
+                painter.text(p, Align2::CENTER_BOTTOM, format!("{}HP", entity.health), FontId::monospace(size), color);
             }
 
 

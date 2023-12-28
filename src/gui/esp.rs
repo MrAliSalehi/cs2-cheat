@@ -43,12 +43,19 @@ pub struct Esp {
     pub enemy_name_placeholder: String,
     pub team_name_placeholder: String,
 
-    pub team_hp_text:bool,
-    pub enemy_hp_text:bool,
-    pub team_hp_text_color:Color32,
-    pub enemy_hp_text_color:Color32,
-    pub team_hp_text_size:f32,
-    pub enemy_hp_text_size:f32,
+    pub team_hp_text: bool,
+    pub enemy_hp_text: bool,
+    pub team_hp_text_color: Color32,
+    pub enemy_hp_text_color: Color32,
+    pub team_hp_text_size: f32,
+    pub enemy_hp_text_size: f32,
+
+    pub team_distance: bool,
+    pub enemy_distance: bool,
+    pub team_distance_color: Color32,
+    pub enemy_distance_color: Color32,
+    pub team_distance_size: f32,
+    pub enemy_distance_size: f32,
     //pub name_maps: HashMap<(Template, EntityName), Arc<String>>,
 }
 
@@ -66,6 +73,7 @@ impl OverlayTab for Esp {
         self.bones(ui);
         self.name(ui);
         self.hp_text(ui);
+        self.distance(ui);
     }
 }
 
@@ -188,7 +196,7 @@ impl Esp {
             .show(ui, |ui| {
                 ui.checkbox(&mut self.enemy_name, "enemy name");
                 if self.enemy_name {
-                    Self::render_name_placeholder(ui,1);
+                    Self::render_name_placeholder(ui, 1);
                     ui.text_edit_singleline(&mut self.enemy_name_placeholder);
 
                     ui.horizontal(|ui| {
@@ -207,7 +215,7 @@ impl Esp {
                 ui.checkbox(&mut self.team_name, "team name");
 
                 if self.team_name {
-                    Self::render_name_placeholder(ui,2);
+                    Self::render_name_placeholder(ui, 2);
                     ui.text_edit_singleline(&mut self.team_name_placeholder);
 
                     ui.horizontal(|ui| {
@@ -223,10 +231,10 @@ impl Esp {
                 }
             });
     }
-    pub fn hp_text(&mut self, ui: &mut Ui) {
+    fn hp_text(&mut self, ui: &mut Ui) {
         CollapsingHeader::new("HP text")
             .default_open(false)
-            .show(ui,|ui| {
+            .show(ui, |ui| {
                 ui.checkbox(&mut self.enemy_hp_text, "enemy hp text");
                 if self.enemy_hp_text {
                     ui.horizontal(|ui| {
@@ -252,7 +260,36 @@ impl Esp {
                 }
             });
     }
-    fn render_name_placeholder(ui: &mut Ui,id:u8) {
+    fn distance(&mut self, ui: &mut Ui) {
+        CollapsingHeader::new("distance (Experimental)")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.checkbox(&mut self.enemy_distance, "enemy distance");
+                if self.enemy_distance {
+                    ui.horizontal(|ui| {
+                        ui.label("color:");
+                        ui.color_edit_button_srgba(&mut self.enemy_distance_color);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("size:");
+                        ui.add(egui::Slider::new(&mut self.enemy_distance_size, 0.5..=25.0));
+                    });
+                }
+                ui.separator();
+                ui.checkbox(&mut self.team_distance, "team distance");
+                if self.team_distance {
+                    ui.horizontal(|ui| {
+                        ui.label("color:");
+                        ui.color_edit_button_srgba(&mut self.team_distance_color);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("size:");
+                        ui.add(egui::Slider::new(&mut self.team_distance_size, 0.5..=25.0));
+                    });
+                }
+            });
+    }
+    fn render_name_placeholder(ui: &mut Ui, id: u8) {
         ui.horizontal(|ui| {
             ui.label("placeholder:");
             CollapsingHeader::new("?")
@@ -260,7 +297,7 @@ impl Esp {
                 .id_source(id)
                 .show(ui, |ui|
                     ui.label("using this feature you can customize the rendering process of name,\
-                     simply write anything you want and put a / (slash) as a placeholder for the player name")
+                     simply write anything you want and put a / (slash) as a placeholder for the player name"),
                 );
         });
     }
@@ -296,15 +333,22 @@ impl Default for Esp {
             team_name_size: 12.0,
             enemy_name_size: 12.0,
             //name_maps: HashMap::default(),
-            enemy_name_placeholder:String::from("(/)"),
-            team_name_placeholder:String::from("(/)"),
+            enemy_name_placeholder: String::from("(/)"),
+            team_name_placeholder: String::from("(/)"),
 
-            enemy_hp_text:false,
-            team_hp_text:false,
-            enemy_hp_text_size:10.0,
-            team_hp_text_size:10.0,
-            team_hp_text_color:Color32::RED,
-            enemy_hp_text_color:Color32::DARK_BLUE
+            enemy_hp_text: false,
+            team_hp_text: false,
+            enemy_hp_text_size: 10.0,
+            team_hp_text_size: 10.0,
+            team_hp_text_color: Color32::RED,
+            enemy_hp_text_color: Color32::DARK_BLUE,
+
+            enemy_distance: false,
+            team_distance: false,
+            enemy_distance_size: 10.0,
+            team_distance_size: 10.0,
+            enemy_distance_color: Color32::RED,
+            team_distance_color: Color32::DARK_BLUE,
         }
     }
 }
