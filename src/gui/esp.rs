@@ -264,6 +264,13 @@ impl Esp {
         CollapsingHeader::new("distance (Experimental)")
             .default_open(false)
             .show(ui, |ui| {
+                ui.horizontal(|ui|{
+                    ui.separator();
+                    ui.label(egui::RichText::new("this feature is experimental and may not work correctly or show false information!")
+                        .color(Color32::DARK_GRAY)
+                        .size(11.0))
+                });
+
                 ui.checkbox(&mut self.enemy_distance, "enemy distance");
                 if self.enemy_distance {
                     ui.horizontal(|ui| {

@@ -42,7 +42,7 @@ impl CsOverlay {
             found_game: false,
             process_name,
             first_frame: true,
-            waiting_icon: String::from(egui_phosphor::regular::CLOCK_COUNTDOWN),
+            waiting_icon: String::from(egui_phosphor::thin::CLOCK_COUNTDOWN),
         }
     }
     pub fn game_running(&self, name: *const u16) -> bool {
@@ -232,7 +232,7 @@ impl EguiOverlay for CsOverlay {
 
         if self.first_frame {
             let mut fonts = egui::FontDefinitions::default();
-            egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+            egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Thin);
             egui_context.set_fonts(fonts);
             catppuccin_egui::set_theme(egui_context, catppuccin_egui::MOCHA);
             self.first_frame = false;
