@@ -1,6 +1,5 @@
 use std::ptr::null;
 use std::slice::Iter;
-use std::sync::Arc;
 use crossbeam_channel::{Sender};
 use egui::{Align2, Color32, Context, FontId, Order, Painter, Pos2, Rect, Rounding, Sense, Stroke, Vec2, vec2, Window};
 use egui_overlay::{EguiOverlay};
@@ -116,7 +115,7 @@ impl CsOverlay {
                 painter.text(p, Align2::CENTER_BOTTOM, &entity.weapon, FontId::monospace(size), color);
             }
             //TODO: is flashed
-            //TODO: is scopped
+            //TODO: is scoped
             //TODO: is defusing
 
             //distance
@@ -245,13 +244,13 @@ impl EguiOverlay for CsOverlay {
             self.first_frame = false;
         }
         let is_running = self.game_running(self.process_name.as_ptr());
-        /*if !is_running {
+        if !is_running {
             glfw_backend.window.set_pos(0, 0);
             glfw_backend.window.set_size(500, 500);
             self.waiting_ui(egui_context, glfw_backend);
             //self.found_game = self.game_running(self.process_name.as_ptr());
             return;
-        }*/
+        }
         let cs_size = WINDOW_POS.lock().unwrap();
         let game_bound_y = 0;
         let game_bound_x = 0;
