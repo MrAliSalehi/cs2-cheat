@@ -10,6 +10,8 @@ pub mod esp;
 pub mod misc;
 pub mod setting;
 
+pub mod trigger;
+
 pub trait OverlayTab {
     fn render_ui(&mut self, ui: &mut Ui);
 }
@@ -20,6 +22,7 @@ pub enum Tabs {
     Aim,
     Misc,
     Gsettings,
+    Trigger,
 }
 
 pub fn world_to_screen(v: Vector3<f32>, game_rect: &RECT) -> Option<Vector3<f32>> {

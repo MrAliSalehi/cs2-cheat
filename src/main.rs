@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::{thread::sleep, time::Duration, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, sync::Arc};
+use std::sync::atomic::Ordering;
 use crossbeam_channel::Receiver;
 use egui_overlay::{egui_render_three_d::three_d::Zero, start};
 use nalgebra::{Vector3};
@@ -16,6 +17,7 @@ mod globals;
 
 pub use prelude::*;
 use crate::{gui::cs2_overlay::CsOverlay, globals::{ENTITY_LIST, LOCAL_PLAYER}, entity::{Entity}, models::{local_player::LocalPlayer, process_handle::ProcHandle}};
+use crate::globals::ENTITY_LIST_PTR;
 
 
 #[cfg(not(target_pointer_width = "64"))]
@@ -63,6 +65,7 @@ fn main() -> Res {
 
     let handle = ProcHandle(Pid::from(proc.process_id).try_into_process_handle().unwrap());
 
+
     let mut entity_list = unsafe {
         loop {
             let res = DataMember::<usize>::new_offset(handle.0, vec![base + offsets::client_dll::dwEntityList]).read();
@@ -70,6 +73,7 @@ fn main() -> Res {
             sleep(Duration::from_secs(2));
         }
     };
+    *ENTITY_LIST_PTR.lock().unwrap() = entity_list;
 
     let mut list_entry = unsafe {
         loop {
@@ -110,6 +114,7 @@ fn main() -> Res {
             let len = get_entities(handle, list_entry, entity_list).unwrap();
             if len.is_zero() {
                 entity_list = unsafe { DataMember::<usize>::new_offset(handle.0, vec![base + offsets::client_dll::dwEntityList]).read().unwrap() };
+                *ENTITY_LIST_PTR.lock().unwrap() = entity_list;
 
                 list_entry = unsafe { DataMember::<usize>::new_offset(handle.0, vec![entity_list + 0x10]).read().unwrap() };
                 println!("entity list is empty");
@@ -136,10 +141,7 @@ fn update_entities(recv_cl3: Arc<Receiver<u8>>) {
                 println!("waiting for the game to begin");
                 continue;
             }
-            rf.iter_mut().for_each(|f| {
-                f.update()
-            }
-            );
+            rf.iter_mut().for_each(|f| f.update());
             drop(rf);
             sleep(Duration::from_millis(21));
         }
@@ -147,10 +149,10 @@ fn update_entities(recv_cl3: Arc<Receiver<u8>>) {
 }
 
 
-fn get_entities(handle: ProcHandle, list_entry: usize, entity_list: usize) -> eyre::Result<usize> {
+fn get_entities(proc_handle: ProcHandle, list_entry: usize, entity_list: usize) -> eyre::Result<usize> {
     let mut entities = vec![];
 
-    let handle = handle.0;
+    let handle = proc_handle.0;
     for i in 0..64 {
         if list_entry == 0 { break; }
         if entity_list == 0 { break; }
@@ -187,7 +189,7 @@ fn get_entities(handle: ProcHandle, list_entry: usize, entity_list: usize) -> ey
         let Ok(entity) = Entity::new(controller, new_pawn, handle) else { continue; };
 
         if i == 1 { //first one is the local player
-            *LOCAL_PLAYER.lock().unwrap() = LocalPlayer { entity, ..Default::default() };
+            *LOCAL_PLAYER.lock().unwrap() = LocalPlayer { entity, process_handle: proc_handle.clone(), ..Default::default() };
             continue;
         }
 

@@ -11,6 +11,7 @@ use crate::{LOCAL_PLAYER, offsets};
 #[derive(Debug, Default)]
 pub struct LocalPlayer {
     pub entity: Entity,
+    pub process_handle: ProcHandle,
     pub view_matrix: SMatrix<f32, 4, 4>,
 }
 

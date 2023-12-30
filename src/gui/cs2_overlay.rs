@@ -1,5 +1,7 @@
 use std::ptr::null;
 use std::slice::Iter;
+use std::thread::sleep;
+use std::time::Duration;
 use crossbeam_channel::{Sender};
 use egui::{Align2, Color32, Context, FontId, Order, Painter, Pos2, Rect, Rounding, Sense, Stroke, Vec2, vec2, Window};
 use egui_overlay::{EguiOverlay};
@@ -14,6 +16,7 @@ use crate::gui::{OverlayTab, Tabs, world_to_screen};
 use crate::gui::esp::Esp;
 use crate::gui::misc::Misc;
 use crate::gui::setting::GeneralSetting;
+use crate::gui::trigger::Trigger;
 
 #[derive(Clone)]
 pub struct CsOverlay {
@@ -27,6 +30,7 @@ pub struct CsOverlay {
     pub first_frame: bool,
     pub waiting_icon: String,
     pub abortion_signal: Sender<u8>,
+    pub trigger: Trigger
 }
 
 impl CsOverlay {
@@ -42,6 +46,7 @@ impl CsOverlay {
             process_name,
             first_frame: true,
             waiting_icon: String::from(egui_phosphor::thin::CLOCK_COUNTDOWN),
+            trigger:Trigger::default()
         }
     }
     pub fn game_running(&self, name: *const u16) -> bool {
@@ -235,7 +240,7 @@ impl CsOverlay {
 impl EguiOverlay for CsOverlay {
     fn gui_run(&mut self, egui_context: &Context, _: &mut ThreeDBackend, glfw_backend: &mut GlfwBackend) {
         self.if_closed(glfw_backend);
-
+        sleep(Duration::from_nanos(200));
         if self.first_frame {
             let mut fonts = egui::FontDefinitions::default();
             egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Thin);
@@ -251,6 +256,8 @@ impl EguiOverlay for CsOverlay {
             //self.found_game = self.game_running(self.process_name.as_ptr());
             return;
         }
+        sleep(Duration::from_nanos(200));
+
         let cs_size = WINDOW_POS.lock().unwrap();
         let game_bound_y = 0;
         let game_bound_x = 0;
@@ -276,6 +283,7 @@ impl EguiOverlay for CsOverlay {
                 {
                     ui.horizontal(|ui| {
                         ui.selectable_value(&mut self.current_tab, Tabs::Esp, "esp");
+                        ui.selectable_value(&mut self.current_tab, Tabs::Trigger, "trigger");
                         ui.selectable_value(&mut self.current_tab, Tabs::Misc, "Misc");
                         ui.selectable_value(&mut self.current_tab, Tabs::Gsettings, "General Options");
                     });
@@ -284,8 +292,10 @@ impl EguiOverlay for CsOverlay {
                         Tabs::Esp => self.esp.render_ui(ui),
                         Tabs::Gsettings => self.general_settings.render_ui(ui),
                         Tabs::Misc => self.misc.render_ui(ui),
-                        Tabs::Aim => {}
+                        _ => {}
                     }
+                    self.trigger.render_ui(ui, self.current_tab == Tabs::Trigger);
+
                     ui.allocate_space(ui.available_size());
                 });
 
