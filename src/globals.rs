@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
 use winapi::shared::windef::RECT;
 use crate::entity::Entity;
+use crate::gui::trigger::Trigger;
 use crate::models::local_player::LocalPlayer;
 lazy_static!(
     pub static ref BONE_MAP: HashMap<&'static str, usize> = HashMap::from([("head", 6),("neck_0", 5),("spine_1", 4),("spine_2", 2),("pelvis", 0),("arm_upper_L", 8),("arm_lower_L", 9),("hand_L", 10),("arm_upper_R", 13),("arm_lower_R", 14),("hand_R", 15),("leg_upper_L", 22),("leg_lower_L", 23),("ankle_L", 24),("leg_upper_R", 25),("leg_lower_R", 26),("ankle_R", 27)]);
@@ -12,4 +13,5 @@ lazy_static!(
     pub static ref ENTITY_LIST: Arc<Mutex<Vec<Entity>>> = Arc::new(Mutex::new(vec![]));
     pub static ref WINDOW_POS: Arc<Mutex<RECT>> = Arc::new(Mutex::new(RECT { left: 700, top: 700, right: 700, bottom: 700 }));
     pub static ref ENTITY_LIST_PTR: Arc<Mutex<usize>> =Arc::new(Mutex::new(0));
+    pub static ref TRIGGER_SETTING: Arc<Mutex<Trigger>> =Arc::new(Mutex::new(Trigger::new()));
 );

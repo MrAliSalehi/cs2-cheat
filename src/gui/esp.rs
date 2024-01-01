@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use egui::{CollapsingHeader, Color32, Pos2, Stroke, Ui, Vec2, Widget};
+use egui::{CollapsingHeader, Color32, Pos2, Stroke, Ui, Vec2};
 use winapi::shared::windef::RECT;
 use crate::gui::{OverlayTab};
 

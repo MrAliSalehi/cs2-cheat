@@ -1,12 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#[cfg(not(target_pointer_width = "64"))]
+compile_error!("compilation is only allowed for 64-bit targets");
 
 use std::{thread::sleep, time::Duration, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, sync::Arc};
-use std::sync::atomic::Ordering;
+use std::sync::Mutex;
 use crossbeam_channel::Receiver;
 use egui_overlay::{egui_render_three_d::three_d::Zero, start};
-use nalgebra::{Vector3};
-use proc_mem::{Process};
 use process_memory::{DataMember, Memory, Pid, TryIntoProcessHandle};
+pub use prelude::*;
+use crate::{gui::{cs2_overlay::CsOverlay, trigger::Trigger}, globals::{ENTITY_LIST, LOCAL_PLAYER, ENTITY_LIST_PTR}, entity::{Entity}, models::{local_player::LocalPlayer, process_handle::ProcHandle}};
 
 mod offsets;
 pub mod prelude;
@@ -15,56 +17,26 @@ mod gui;
 mod models;
 mod globals;
 
-pub use prelude::*;
-use crate::{gui::cs2_overlay::CsOverlay, globals::{ENTITY_LIST, LOCAL_PLAYER}, entity::{Entity}, models::{local_player::LocalPlayer, process_handle::ProcHandle}};
-use crate::globals::ENTITY_LIST_PTR;
-
-
-#[cfg(not(target_pointer_width = "64"))]
-compile_error!("compilation is only allowed for 64-bit targets");
-
-
-
 fn main() -> Res {
     let name = OsStr::new("Counter-Strike 2").encode_wide().chain(once(0)).collect::<Vec<u16>>();
     gui::update_cs2_coordination(name.clone());
-    let (sender, receiver) = crossbeam_channel::bounded::<u8>(1);
 
-    let receiver = Arc::new(receiver);
+    let (app_state_sender, a_s_receiver) = crossbeam_channel::bounded::<u8>(1);
+    let app_state_receiver = Arc::new(a_s_receiver);
 
-    std::thread::spawn(|| start(CsOverlay::new(sender, name)));
 
-    let recv_cl = Arc::clone(&receiver);
-    let proc = loop {
-        if let Ok(_) = recv_cl.try_recv() {
-            return Ok(());
-        }
-        let proc = Process::with_name("cs2.exe");
-        match proc {
-            Ok(proc) => break proc,
-            Err(_) => {
-                println!("waiting for process");
-                sleep(Duration::from_secs(1));
-            }
-        }
-    };
+    std::thread::spawn(|| start(CsOverlay::new(app_state_sender, name)));
 
-    let client = loop {
-        if let Ok(_) = recv_cl.try_recv() {
-            return Ok(());
-        }
-        if let Ok(module) = proc.module("client.dll") {
-            break module;
-        }
-        println!("waiting for modules");
-        sleep(Duration::from_secs(1));
-    };
+    let recv_cl = Arc::clone(&app_state_receiver);
+    let Some(proc) = get_game_process(&recv_cl) else { return Ok(()); };
+
+    let Some(client) = get_client_module(&recv_cl, &proc) else { return Ok(()); };
+
     sleep(Duration::from_secs(5));
 
     let base = client.base_address();
 
     let handle = ProcHandle(Pid::from(proc.process_id).try_into_process_handle().unwrap());
-
 
     let mut entity_list = unsafe {
         loop {
@@ -88,6 +60,7 @@ fn main() -> Res {
     let handle = handle;
 
     loop {
+        //todo: if the game ends do something
         if let Ok(_) = recv_cl.try_recv() {
             return Ok(());
         }
@@ -122,15 +95,17 @@ fn main() -> Res {
             sleep(Duration::from_secs(5));
         }
     });
+
+    Trigger::run_thread( Arc::clone(&recv_cl), handle);
+
     let recv_cl3 = Arc::clone(&recv_cl);
 
-    update_entities(recv_cl3);
-
+    update_entities_blocking(recv_cl3);
 
     Ok(())
 }
 
-fn update_entities(recv_cl3: Arc<Receiver<u8>>) {
+fn update_entities_blocking(recv_cl3: Arc<Receiver<u8>>) {
     std::thread::spawn(move || {
         loop {
             if let Ok(_) = recv_cl3.try_recv() { return; }
@@ -147,7 +122,6 @@ fn update_entities(recv_cl3: Arc<Receiver<u8>>) {
         }
     }).join().unwrap();
 }
-
 
 fn get_entities(proc_handle: ProcHandle, list_entry: usize, entity_list: usize) -> eyre::Result<usize> {
     let mut entities = vec![];
@@ -189,7 +163,7 @@ fn get_entities(proc_handle: ProcHandle, list_entry: usize, entity_list: usize) 
         let Ok(entity) = Entity::new(controller, new_pawn, handle) else { continue; };
 
         if i == 1 { //first one is the local player
-            *LOCAL_PLAYER.lock().unwrap() = LocalPlayer { entity, process_handle: proc_handle.clone(), ..Default::default() };
+            *LOCAL_PLAYER.lock().unwrap() = LocalPlayer { entity, ..Default::default() };
             continue;
         }
 
@@ -200,9 +174,3 @@ fn get_entities(proc_handle: ProcHandle, list_entry: usize, entity_list: usize) 
 
     Ok(len)
 }
-
-fn read_vector3_from_bytes(bytes: &[u8]) -> Vector3<f32> {
-    let floats: &[f32; 3] = bytemuck::from_bytes(bytes);
-    Vector3::from_column_slice(floats)
-}
-

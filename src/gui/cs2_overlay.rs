@@ -1,5 +1,6 @@
 use std::ptr::null;
 use std::slice::Iter;
+use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 use crossbeam_channel::{Sender};
@@ -10,7 +11,7 @@ use egui_overlay::egui_window_glfw_passthrough::GlfwBackend;
 use winapi::um::winuser::FindWindowW;
 use crate::continue_if;
 use crate::entity::Entity;
-use crate::globals::{BONE_CONNECTIONS, ENTITY_LIST, LOCAL_PLAYER, WINDOW_POS};
+use crate::globals::{BONE_CONNECTIONS, ENTITY_LIST, LOCAL_PLAYER, TRIGGER_SETTING, WINDOW_POS};
 
 use crate::gui::{OverlayTab, Tabs, world_to_screen};
 use crate::gui::esp::Esp;
@@ -18,7 +19,6 @@ use crate::gui::misc::Misc;
 use crate::gui::setting::GeneralSetting;
 use crate::gui::trigger::Trigger;
 
-#[derive(Clone)]
 pub struct CsOverlay {
     pub misc: Misc,
     pub general_settings: GeneralSetting,
@@ -34,7 +34,7 @@ pub struct CsOverlay {
 }
 
 impl CsOverlay {
-    pub fn new(abortion_signal: Sender<u8>, process_name: Vec<u16>) -> Self {
+    pub fn new(abortion_signal: Sender<u8>,  process_name: Vec<u16>) -> Self {
         Self {
             abortion_signal,
             esp: Esp::default(),
@@ -46,7 +46,7 @@ impl CsOverlay {
             process_name,
             first_frame: true,
             waiting_icon: String::from(egui_phosphor::thin::CLOCK_COUNTDOWN),
-            trigger:Trigger::default()
+            trigger:Trigger::new()
         }
     }
     pub fn game_running(&self, name: *const u16) -> bool {
@@ -288,14 +288,17 @@ impl EguiOverlay for CsOverlay {
                         ui.selectable_value(&mut self.current_tab, Tabs::Gsettings, "General Options");
                     });
                     ui.separator();
+
                     match self.current_tab {
                         Tabs::Esp => self.esp.render_ui(ui),
                         Tabs::Gsettings => self.general_settings.render_ui(ui),
                         Tabs::Misc => self.misc.render_ui(ui),
+                        Tabs::Trigger => self.trigger.render_ui(ui),
                         _ => {}
                     }
-                    self.trigger.render_ui(ui, self.current_tab == Tabs::Trigger);
-
+                    let mut t = TRIGGER_SETTING.lock().unwrap();
+                    *t = self.trigger.clone();
+                    drop(t);
                     ui.allocate_space(ui.available_size());
                 });
 

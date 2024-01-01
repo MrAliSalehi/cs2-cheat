@@ -46,10 +46,8 @@ impl Entity {
         if self.health == 0 { return; }
 
         if self.weapon_name_ptr != 0 {
-            let raw_w_name = unsafe {
-                DataMember::<[u8; 32]>::new_offset(handle, vec![self.weapon_name_ptr])
-                    .read().unwrap()
-            };
+            let Ok(raw_w_name) = (unsafe { DataMember::<[u8; 32]>::new_offset(handle, vec![self.weapon_name_ptr]).read() }) else { return; };
+
             let mut map = WEAPON_MAP.lock().unwrap();
             if let Some(weapon) = map.get(&raw_w_name) {
                 self.weapon = Arc::clone(weapon);
@@ -60,21 +58,20 @@ impl Entity {
             drop(map)
         }
 
-        let raw_origin = unsafe {
-            DataMember::<[u8; 12]>::new_offset(handle, vec![pawn + offsets::C_BasePlayerPawn::m_vOldOrigin])
-                .read().unwrap()
-        };
+        let Ok(raw_origin) =
+            (unsafe { DataMember::<[u8; 12]>::new_offset(handle, vec![pawn + offsets::C_BasePlayerPawn::m_vOldOrigin]).read() }) else { return; };
+
         self.origin = read_vector3_from_bytes(&raw_origin);
         self.head = Vector3::new(self.origin.x, self.origin.y, self.origin.z + 75f32); // 75 is the player height
 
         if self.money_service != 0 {
             self.spent_money = unsafe {
                 DataMember::<i32>::new_offset(handle, vec![self.money_service + offsets::CCSPlayerController_InGameMoneyServices::m_iTotalCashSpent])
-                    .read().unwrap()
+                    .read().unwrap_or(0)
             };
             self.money = unsafe {
                 DataMember::<i32>::new_offset(handle, vec![self.money_service + offsets::CCSPlayerController_InGameMoneyServices::m_iAccount])
-                    .read().unwrap()
+                    .read().unwrap_or(0)
             };
         }
         if self.bone_arr_addr != 0 {
@@ -160,7 +157,7 @@ impl Entity {
                 weapon_name = String::from("awp");
             }
         }
-        weapon_name.replace("weapon_","")
+        weapon_name.replace("weapon_", "")
     }
     pub fn calculate_color(&self) -> Color32 {
         Color32::from_rgba_premultiplied((255 - self.health) as u8, (55 + self.health * 2) as u8, (140 - self.health) as u8, 255)
