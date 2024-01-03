@@ -1,17 +1,19 @@
 use std::ptr::null;
 use std::slice::Iter;
-use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 use crossbeam_channel::{Sender};
 use egui::{Align2, Color32, Context, FontId, Order, Painter, Pos2, Rect, Rounding, Sense, Stroke, Vec2, vec2, Window};
 use egui_overlay::{EguiOverlay};
-use egui_overlay::egui_render_three_d::ThreeDBackend;
+use egui_overlay::egui_render_three_d::{glow, ThreeDBackend};
+use egui_overlay::egui_render_three_d::glow::HasContext;
+use egui_overlay::egui_window_glfw_passthrough::glfw::SwapInterval;
 use egui_overlay::egui_window_glfw_passthrough::GlfwBackend;
+use winapi::shared::windef::RECT;
 use winapi::um::winuser::FindWindowW;
 use crate::continue_if;
 use crate::entity::Entity;
-use crate::globals::{BONE_CONNECTIONS, ENTITY_LIST, LOCAL_PLAYER, TRIGGER_SETTING, WINDOW_POS};
+use crate::globals::{BONE_CONNECTIONS, ENTITY_LIST, LOCAL_PLAYER, TRIGGER_SETTING};
 
 use crate::gui::{OverlayTab, Tabs, world_to_screen};
 use crate::gui::esp::Esp;
@@ -24,17 +26,17 @@ pub struct CsOverlay {
     pub general_settings: GeneralSetting,
     pub esp: Esp,
     pub current_tab: Tabs,
-    open: bool,
-    pub found_game: bool,
+    pub set_size: bool,
     pub process_name: Vec<u16>,
     pub first_frame: bool,
     pub waiting_icon: String,
     pub abortion_signal: Sender<u8>,
-    pub trigger: Trigger
+    pub trigger: Trigger,
+    open: bool,
 }
 
 impl CsOverlay {
-    pub fn new(abortion_signal: Sender<u8>,  process_name: Vec<u16>) -> Self {
+    pub fn new(abortion_signal: Sender<u8>, process_name: Vec<u16>) -> Self {
         Self {
             abortion_signal,
             esp: Esp::default(),
@@ -42,16 +44,36 @@ impl CsOverlay {
             general_settings: GeneralSetting::default(),
             current_tab: Tabs::Esp,
             open: true,
-            found_game: false,
+            set_size: false,
             process_name,
             first_frame: true,
             waiting_icon: String::from(egui_phosphor::thin::CLOCK_COUNTDOWN),
-            trigger:Trigger::new()
+            trigger: Trigger::new(),
         }
     }
-    pub fn game_running(&self, name: *const u16) -> bool {
+    pub fn game_coordination(&self, name: *const u16) -> Option<RECT> {
+        /* let h_wnd = unsafe { FindWindowW(null(), name) };
+         !h_wnd.is_null()*/
+        /*unsafe {
+            let name = name.as_ptr();
+            let h_wnd = FindWindowW(null(), name);
+            if h_wnd.is_null() {
+                sleep(Duration::from_secs(4));
+                continue;
+            }
+            let mut rect = WINDOW_POS.lock().unwrap();
+            winapi::um::winuser::GetWindowRect(h_wnd, &mut *rect);
+            drop(rect);
+            sleep(Duration::from_secs(5));
+        }*/
+
         let h_wnd = unsafe { FindWindowW(null(), name) };
-        !h_wnd.is_null()
+        if h_wnd.is_null() {
+            return None;
+        }
+        let mut rect = RECT::default();
+        unsafe { winapi::um::winuser::GetWindowRect(h_wnd, &mut rect) };
+        Some(rect)
     }
     pub fn waiting_ui(&mut self, context: &Context, glfw_backend: &mut GlfwBackend) {
         self.if_closed(glfw_backend);
@@ -130,7 +152,7 @@ impl CsOverlay {
                 if self.esp.enemy_distance { Some((self.esp.enemy_distance_color, self.esp.enemy_distance_size)) } else { None }
             };
             if let Some((color, size)) = d {
-                let p =Pos2::new(screen_head.x + (width / 2.0 + 5.0), screen_head.y + height + 10.0);
+                let p = Pos2::new(screen_head.x + (width / 2.0 + 5.0), screen_head.y + height + 10.0);
                 painter.text(p, Align2::CENTER_BOTTOM, format!("|{}M|", distance), FontId::monospace(size), color);
             }
 
@@ -238,41 +260,41 @@ impl CsOverlay {
 }
 
 impl EguiOverlay for CsOverlay {
-    fn gui_run(&mut self, egui_context: &Context, _: &mut ThreeDBackend, glfw_backend: &mut GlfwBackend) {
+    fn gui_run(&mut self, egui_context: &Context, t: &mut ThreeDBackend, glfw_backend: &mut GlfwBackend) {
         self.if_closed(glfw_backend);
-        sleep(Duration::from_nanos(200));
+        //sleep(Duration::from_millis(1000 / 144));
+        //sleep(Duration::from_nanos(200));
         if self.first_frame {
             let mut fonts = egui::FontDefinitions::default();
             egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Thin);
             egui_context.set_fonts(fonts);
             catppuccin_egui::set_theme(egui_context, catppuccin_egui::MOCHA);
+            unsafe { t.glow_backend.glow_context.disable(glow::DEBUG_OUTPUT_SYNCHRONOUS) };
+            //glfw_backend.glfw.set_swap_interval(SwapInterval::None);
             self.first_frame = false;
         }
-        let is_running = self.game_running(self.process_name.as_ptr());
-        if !is_running {
+        let Some(cs_size) = self.game_coordination(self.process_name.as_ptr()) else {
             glfw_backend.window.set_pos(0, 0);
             glfw_backend.window.set_size(500, 500);
             self.waiting_ui(egui_context, glfw_backend);
-            //self.found_game = self.game_running(self.process_name.as_ptr());
+            //sleep(Duration::from_millis(20));
             return;
-        }
-        sleep(Duration::from_nanos(200));
-
-        let cs_size = WINDOW_POS.lock().unwrap();
-        let game_bound_y = 0;
-        let game_bound_x = 0;
+        };
+        let game_bound_y = 0f32;
+        let game_bound_x = 0f32;
 
         let game_bound_right = cs_size.right;
         let game_bound_bottom = cs_size.bottom;
-        self.esp.game_rect = *cs_size;
-        drop(cs_size);
+        self.esp.game_rect = cs_size;
 
-        glfw_backend.window.set_pos(game_bound_x, game_bound_y);
-        glfw_backend.window.set_size(game_bound_right, game_bound_bottom);
+        if !self.set_size {
+            self.set_size = true;
+            glfw_backend.window.set_pos(0, 0);
+            glfw_backend.window.set_size(game_bound_right, game_bound_bottom);
 
-        self.esp.area_pos = Pos2::new(game_bound_x as f32, game_bound_y as f32);
+        }
+        self.esp.area_pos = Pos2::new(game_bound_x, game_bound_y);
         self.esp.area_size = vec2(game_bound_right as f32, game_bound_bottom as f32);
-
         Window::new("cs2 external cheat | beta")
             .resizable(true)
             .vscroll(true)
@@ -308,9 +330,9 @@ impl EguiOverlay for CsOverlay {
         }
 
         if egui_context.wants_pointer_input() || egui_context.wants_keyboard_input() {
-            glfw_backend.window.set_mouse_passthrough(false);
+            glfw_backend.set_passthrough(false);
         } else {
-            glfw_backend.window.set_mouse_passthrough(true);
+            glfw_backend.set_passthrough(true)
         }
         egui_context.request_repaint();
     }

@@ -3,7 +3,6 @@
 compile_error!("compilation is only allowed for 64-bit targets");
 
 use std::{thread::sleep, time::Duration, ffi::OsStr, iter::once, os::windows::ffi::OsStrExt, sync::Arc};
-use std::sync::Mutex;
 use crossbeam_channel::Receiver;
 use egui_overlay::{egui_render_three_d::three_d::Zero, start};
 use process_memory::{DataMember, Memory, Pid, TryIntoProcessHandle};
@@ -19,7 +18,7 @@ mod globals;
 
 fn main() -> Res {
     let name = OsStr::new("Counter-Strike 2").encode_wide().chain(once(0)).collect::<Vec<u16>>();
-    gui::update_cs2_coordination(name.clone());
+    //gui::update_cs2_coordination(name.clone());
 
     let (app_state_sender, a_s_receiver) = crossbeam_channel::bounded::<u8>(1);
     let app_state_receiver = Arc::new(a_s_receiver);
@@ -57,8 +56,6 @@ fn main() -> Res {
 
     LocalPlayer::update_view_matrix(base, handle, Arc::clone(&recv_cl));
 
-    let handle = handle;
-
     loop {
         //todo: if the game ends do something
         if let Ok(_) = recv_cl.try_recv() {
@@ -84,7 +81,7 @@ fn main() -> Res {
     std::thread::spawn(move || {
         loop {
             if let Ok(_) = recv_cl2.try_recv() { return; }
-            let len = get_entities(handle, list_entry, entity_list).unwrap();
+            let len = get_entities(handle, list_entry, entity_list, false).unwrap();
             if len.is_zero() {
                 entity_list = unsafe { DataMember::<usize>::new_offset(handle.0, vec![base + offsets::client_dll::dwEntityList]).read().unwrap() };
                 *ENTITY_LIST_PTR.lock().unwrap() = entity_list;
@@ -96,16 +93,16 @@ fn main() -> Res {
         }
     });
 
-    Trigger::run_thread( Arc::clone(&recv_cl), handle);
+    Trigger::run_thread(Arc::clone(&recv_cl), handle);
 
     let recv_cl3 = Arc::clone(&recv_cl);
 
-    update_entities_blocking(recv_cl3);
+    update_entities_blocking(recv_cl3, handle, list_entry, entity_list);
 
     Ok(())
 }
 
-fn update_entities_blocking(recv_cl3: Arc<Receiver<u8>>) {
+fn update_entities_blocking(recv_cl3: Arc<Receiver<u8>>, handle: ProcHandle, list_entry: usize, entity_list: usize) {
     std::thread::spawn(move || {
         loop {
             if let Ok(_) = recv_cl3.try_recv() { return; }
@@ -118,12 +115,13 @@ fn update_entities_blocking(recv_cl3: Arc<Receiver<u8>>) {
             }
             rf.iter_mut().for_each(|f| f.update());
             drop(rf);
+            get_entities(handle, list_entry, entity_list, true).unwrap();
             sleep(Duration::from_millis(21));
         }
     }).join().unwrap();
 }
 
-fn get_entities(proc_handle: ProcHandle, list_entry: usize, entity_list: usize) -> eyre::Result<usize> {
+fn get_entities(proc_handle: ProcHandle, list_entry: usize, entity_list: usize, local_player_only: bool) -> eyre::Result<usize> {
     let mut entities = vec![];
 
     let handle = proc_handle.0;
@@ -164,6 +162,7 @@ fn get_entities(proc_handle: ProcHandle, list_entry: usize, entity_list: usize) 
 
         if i == 1 { //first one is the local player
             *LOCAL_PLAYER.lock().unwrap() = LocalPlayer { entity, ..Default::default() };
+            if local_player_only { return Ok(1); }
             continue;
         }
 

@@ -34,7 +34,7 @@ impl LocalPlayer {
                 }
                 let matrix = unsafe { m_matrix.read().unwrap_or_default() };
                 *LOCAL_PLAYER.lock().unwrap().view_matrix = *matrix;
-                sleep(Duration::from_nanos(400));
+                sleep(Duration::from_millis(1));
             }
         });
     }

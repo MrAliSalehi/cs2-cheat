@@ -55,21 +55,3 @@ pub fn world_to_screen(v: Vector3<f32>, game_rect: &RECT) -> Option<Vector3<f32>
 }
 
 
-pub fn update_cs2_coordination(name: Vec<u16>) {
-    std::thread::spawn(move || {
-        unsafe {
-            let name = name.as_ptr();
-            loop {
-                let h_wnd = FindWindowW(null(), name);
-                if h_wnd.is_null() {
-                    sleep(Duration::from_secs(4));
-                    continue;
-                }
-                let mut rect = WINDOW_POS.lock().unwrap();
-                winapi::um::winuser::GetWindowRect(h_wnd, &mut *rect);
-                drop(rect);
-                sleep(Duration::from_secs(10));
-            }
-        }
-    });
-}

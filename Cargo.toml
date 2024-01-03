@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 proc_mem = { git = "https://github.com/mralisalehi/ProcMem/", rev = "b14d6ca9c02bdd7a2ef0561e7b5bb2552b6dad10" }
 egui = "0.24.1"
-egui_overlay ="0.6.0" # {path = "A:\\Dev\\Projects\\Rust\\egui_overlay"}
+egui_overlay = "0.6.0"
 egui-phosphor = {version = "0.3.1", features = ["thin"], default-features = false}
 catppuccin-egui = {git="https://github.com/catppuccin/egui"}
 eyre = "0.6.11"
@@ -20,3 +20,6 @@ clearscreen = "2.0.1"
 crossbeam-channel = "0.5.10"
 serde = "1.0.193"
 serde_json = "1.0.109"
+
+[profile.release]
+debug = true
