@@ -7,8 +7,8 @@
 
 pub mod client_dll { // client.dll
 pub const dwEntityList: usize = 0x17C1950;
-    pub const dwForceAttack: usize = 0x16C21D0;
-    pub const dwForceAttack2: usize = 0x16C2380;
+    pub const dwForceAttack: usize = 0x16C1E70;
+    pub const dwForceAttack2: usize = 0x16C1F00;
     pub const dwForceBackward: usize = 0x16C2140;
     pub const dwForceCrouch: usize = 0x16C2410;
     pub const dwForceForward: usize = 0x16C20B0;
@@ -54,28 +54,6 @@ pub const m_AssociatedEntityNames: usize = 0x50; // C_NetworkUtlVectorBase<CUtlS
 }
 
 pub mod CAnimGraphNetworkedVariables {
-    pub const m_PredNetBoolVariables: usize = 0x8; // C_NetworkUtlVectorBase<uint32_t>
-pub const m_PredNetByteVariables: usize = 0x20; // C_NetworkUtlVectorBase<uint8_t>
-pub const m_PredNetUInt16Variables: usize = 0x38; // C_NetworkUtlVectorBase<uint16_t>
-pub const m_PredNetIntVariables: usize = 0x50; // C_NetworkUtlVectorBase<int32_t>
-pub const m_PredNetUInt32Variables: usize = 0x68; // C_NetworkUtlVectorBase<uint32_t>
-pub const m_PredNetUInt64Variables: usize = 0x80; // C_NetworkUtlVectorBase<uint64_t>
-pub const m_PredNetFloatVariables: usize = 0x98; // C_NetworkUtlVectorBase<float>
-pub const m_PredNetVectorVariables: usize = 0xB0; // C_NetworkUtlVectorBase<Vector>
-pub const m_PredNetQuaternionVariables: usize = 0xC8; // C_NetworkUtlVectorBase<Quaternion>
-pub const m_OwnerOnlyPredNetBoolVariables: usize = 0xE0; // C_NetworkUtlVectorBase<uint32_t>
-pub const m_OwnerOnlyPredNetByteVariables: usize = 0xF8; // C_NetworkUtlVectorBase<uint8_t>
-pub const m_OwnerOnlyPredNetUInt16Variables: usize = 0x110; // C_NetworkUtlVectorBase<uint16_t>
-pub const m_OwnerOnlyPredNetIntVariables: usize = 0x128; // C_NetworkUtlVectorBase<int32_t>
-pub const m_OwnerOnlyPredNetUInt32Variables: usize = 0x140; // C_NetworkUtlVectorBase<uint32_t>
-pub const m_OwnerOnlyPredNetUInt64Variables: usize = 0x158; // C_NetworkUtlVectorBase<uint64_t>
-pub const m_OwnerOnlyPredNetFloatVariables: usize = 0x170; // C_NetworkUtlVectorBase<float>
-pub const m_OwnerOnlyPredNetVectorVariables: usize = 0x188; // C_NetworkUtlVectorBase<Vector>
-pub const m_OwnerOnlyPredNetQuaternionVariables: usize = 0x1A0; // C_NetworkUtlVectorBase<Quaternion>
-pub const m_nBoolVariablesCount: usize = 0x1B8; // int32_t
-pub const m_nOwnerOnlyBoolVariablesCount: usize = 0x1BC; // int32_t
-pub const m_nRandomSeedOffset: usize = 0x1C0; // int32_t
-pub const m_flLastTeleportTime: usize = 0x1C4; // float
 }
 
 pub mod CAttributeList {
