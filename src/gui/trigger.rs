@@ -24,8 +24,7 @@ impl OverlayTab for Trigger {
 
         ui.horizontal(|ui| {
             ui.label("delay (ms):");
-
-            ui.add(egui::Slider::new(&mut self.delay_ms, 0..=3000));
+            ui.add(egui::Slider::new(&mut self.delay_ms, 0..=500).drag_value_speed(1.0).suffix(" MS").step_by(1.0));
         });
     }
 }

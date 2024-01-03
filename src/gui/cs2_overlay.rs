@@ -1,5 +1,6 @@
 use std::ptr::null;
 use std::slice::Iter;
+use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 use crossbeam_channel::{Sender};
@@ -13,7 +14,7 @@ use winapi::shared::windef::RECT;
 use winapi::um::winuser::FindWindowW;
 use crate::continue_if;
 use crate::entity::Entity;
-use crate::globals::{BONE_CONNECTIONS, ENTITY_LIST, LOCAL_PLAYER, TRIGGER_SETTING};
+use crate::globals::{BONE_CONNECTIONS, ENTITY_LIST, LOCAL_PLAYER, TRIGGER_SETTING, WINDOW_POS};
 
 use crate::gui::{OverlayTab, Tabs, world_to_screen};
 use crate::gui::esp::Esp;
@@ -52,28 +53,14 @@ impl CsOverlay {
         }
     }
     pub fn game_coordination(&self, name: *const u16) -> Option<RECT> {
-        /* let h_wnd = unsafe { FindWindowW(null(), name) };
-         !h_wnd.is_null()*/
-        /*unsafe {
-            let name = name.as_ptr();
-            let h_wnd = FindWindowW(null(), name);
-            if h_wnd.is_null() {
-                sleep(Duration::from_secs(4));
-                continue;
-            }
-            let mut rect = WINDOW_POS.lock().unwrap();
-            winapi::um::winuser::GetWindowRect(h_wnd, &mut *rect);
-            drop(rect);
-            sleep(Duration::from_secs(5));
-        }*/
-
         let h_wnd = unsafe { FindWindowW(null(), name) };
-        if h_wnd.is_null() {
-            return None;
-        }
-        let mut rect = RECT::default();
-        unsafe { winapi::um::winuser::GetWindowRect(h_wnd, &mut rect) };
-        Some(rect)
+        if h_wnd.is_null() { return None; }
+
+        let mut rect = WINDOW_POS.lock().unwrap();
+        unsafe { winapi::um::winuser::GetWindowRect(h_wnd, &mut *rect) };
+        let res = (*rect).clone();
+        drop(rect);
+        Some(res)
     }
     pub fn waiting_ui(&mut self, context: &Context, glfw_backend: &mut GlfwBackend) {
         self.if_closed(glfw_backend);
@@ -263,21 +250,19 @@ impl EguiOverlay for CsOverlay {
     fn gui_run(&mut self, egui_context: &Context, t: &mut ThreeDBackend, glfw_backend: &mut GlfwBackend) {
         self.if_closed(glfw_backend);
         //sleep(Duration::from_millis(1000 / 144));
-        //sleep(Duration::from_nanos(200));
         if self.first_frame {
             let mut fonts = egui::FontDefinitions::default();
             egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Thin);
             egui_context.set_fonts(fonts);
             catppuccin_egui::set_theme(egui_context, catppuccin_egui::MOCHA);
             unsafe { t.glow_backend.glow_context.disable(glow::DEBUG_OUTPUT_SYNCHRONOUS) };
-            //glfw_backend.glfw.set_swap_interval(SwapInterval::None);
             self.first_frame = false;
         }
         let Some(cs_size) = self.game_coordination(self.process_name.as_ptr()) else {
             glfw_backend.window.set_pos(0, 0);
             glfw_backend.window.set_size(500, 500);
             self.waiting_ui(egui_context, glfw_backend);
-            //sleep(Duration::from_millis(20));
+            sleep(Duration::from_millis(20));
             return;
         };
         let game_bound_y = 0f32;
@@ -291,7 +276,6 @@ impl EguiOverlay for CsOverlay {
             self.set_size = true;
             glfw_backend.window.set_pos(0, 0);
             glfw_backend.window.set_size(game_bound_right, game_bound_bottom);
-
         }
         self.esp.area_pos = Pos2::new(game_bound_x, game_bound_y);
         self.esp.area_size = vec2(game_bound_right as f32, game_bound_bottom as f32);
