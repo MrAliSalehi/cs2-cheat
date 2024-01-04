@@ -18,11 +18,9 @@ mod globals;
 
 fn main() -> Res {
     let name = OsStr::new("Counter-Strike 2").encode_wide().chain(once(0)).collect::<Vec<u16>>();
-    //gui::update_cs2_coordination(name.clone());
 
     let (app_state_sender, a_s_receiver) = crossbeam_channel::bounded::<u8>(1);
     let app_state_receiver = Arc::new(a_s_receiver);
-
 
     std::thread::spawn(|| start(CsOverlay::new(app_state_sender, name)));
 

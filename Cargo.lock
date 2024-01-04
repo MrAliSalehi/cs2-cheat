@@ -345,6 +345,7 @@ dependencies = [
  "egui_overlay",
  "eyre",
  "lazy_static",
+ "mouce",
  "nalgebra",
  "proc_mem",
  "process-memory",
@@ -604,6 +605,12 @@ checksum = "09b2db4d361b9ebe743c3a542ddef5d605269bd1f93e1090440fff075e666ddf"
 dependencies = [
  "cmake",
 ]
+
+[[package]]
+name = "glob"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "glow"
@@ -934,6 +941,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7810e0be55b428ada41041c41f32c9f1a42817901b4ccf45fa3d4b6561e74c7"
 dependencies = [
  "adler",
+]
+
+[[package]]
+name = "mouce"
+version = "0.2.43"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a33d9a0d590ee3a1e11ee24e8d800ec22a613558d20d7a73c16ee73b4ae5b90"
+dependencies = [
+ "glob",
 ]
 
 [[package]]
